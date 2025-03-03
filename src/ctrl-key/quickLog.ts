@@ -20,7 +20,24 @@ function getLogConfig(): LogConfig {
 function getLogEnd(config: LogConfig): string {
   return config.showLogSemicolon ? ");" : ")";
 }
+export function normalizePath(inputPath: string): string {
+  return inputPath.replace(/\\/g, '/');
+  }
+  export  function getFileInfo(document: vscode.TextDocument) {
+    // 获取文件名并去掉扩展名
+    const fileName = path.basename(document.fileName);
 
+    // 获取文件目录路径并标准化
+    const fileDir = normalizePath(path.dirname(document.fileName));
+
+    // 获取最后一级目录名称
+    const dirName = path.basename(fileDir);
+
+    // 生成相对路径并标准化
+    const relativePath = normalizePath(path.join(dirName, fileName));
+
+    return { fileName, fileDir, relativePath };
+}
 function generateLogStatement(
     document: vscode.TextDocument,
     insertSection: vscode.Selection,
@@ -30,8 +47,9 @@ function generateLogStatement(
   ): string {
     // 获取文件信息
     const fileName = path.basename(document.fileName);
-    const fileDir = path.dirname(document.fileName);
-    const relativePath = path.join(path.basename(fileDir), fileName);
+    const fileDir = normalizePath(path.dirname(document.fileName));
+    const dirName = path.basename(fileDir);
+    const relativePath = normalizePath(path.join(dirName, fileName));
     
     // 获取行号信息
     const lineNumber = config.showLineNumber ? `line:${insertSection.end.line + 1}` : '';
