@@ -65,7 +65,7 @@ function generateLogStatement(
           filePathStr = relativePath;
           break;
         case LogFormatType.CUSTOM:
-          filePathStr = document.fileName; // 完整路径，可以自定义处理
+          filePathStr = normalizePath(document.fileName); // 完整路径，可以自定义处理
           break;
       }
     }
@@ -78,7 +78,7 @@ function generateLogStatement(
       logPrefix = config.customFormat
         .replace('${fileName}', fileName)
         .replace('${filePath}', relativePath)
-        .replace('${fullPath}', document.fileName)
+        .replace('${fullPath}', normalizePath(document.fileName))
         .replace('${varName}', word)
         .replace('${lineNumber}', lineNumber);
     } else {

@@ -132,9 +132,15 @@
         "when": "editorTextFocus"
       },
       {
-        "command": "log-rush.removeLog",
+        "command": "log-rush.uncommentLog",
         "key": "ctrl+f2",
         "mac": "cmd+f2",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "log-rush.removeLog",
+        "key": "ctrl+f3",
+        "mac": "cmd+f3",
         "when": "editorTextFocus"
       }
     ]

@@ -16,10 +16,14 @@ const removeLog=vscode.commands.registerCommand('log-rush.removeLog',function(){
         entireDocument=true;
     }
     txt=document.getText(selection);
-    const regex = /\s*console\s*\.\s*(log|info|error|warn|debug|table|dir|trace)\s*\(\s*(?:[^)(]|\([^)(]*\))*\s*\)\s*;?\s*/g;
-    const newText=txt.replace(regex,'');
+
+    const regex = /^\s*(?:\/\/\s*)?console\s*\.\s*(log|info|error|warn|debug|table|dir|trace|group|groupCollapsed|groupEnd|clear|count|countReset|time|timeLog)\s*\([^)]*\)\s*;?\s*$/gm;
+    const lines=txt.split('\n');
+    const filteredLines=lines.filter(lines=>!regex.test(lines));
+    const newText=filteredLines.join('\n');
+
     if(newText===txt){
-        VSCodeHelper.showInfoMessage('没有找到 Console 语句');
+        VSCodeHelper.showWarningMessage('没有找到 Console 语句');
         return;
     }
     editor.edit(editBuilder=>{
@@ -54,20 +58,15 @@ const commentLog=vscode.commands.registerCommand('log-rush.commentLog',function(
   
   txt = document.getText(selection);
   // 正则表达式匹配 console 调用的行
-  const regex = /^(.*?)(console\s*\.\s*(log|info|error|warn|debug|table|dir|trace)\s*\(.*)$/gm;
+  const regex = /^(\s*)(console\s*\.\s*(log|info|error|warn|debug|table|dir|trace)\s*\([^)]*\)\s*;?)$/gm;
+
   
-  // 注释掉 console 语句
-  const newText = txt.replace(regex, (match, indent, consoleCall) => {
-    // 检查是否已经被注释
-    if (indent.trim().startsWith('//')) {
-      return match; // 已经被注释，保持原样
-    }
-    return `${indent}// ${consoleCall}`;
-  });
+    // 注释 console 语句，保留原有缩进
+    const newText = txt.replace(regex, '$1// $2');
   
   // 如果没有发生实际替换，提醒用户
   if (newText === txt) {
-    VSCodeHelper.showInfoMessage('没有找到 Console 语句或所有语句已被注释');
+    VSCodeHelper.showWarningMessage('没有找到 Console 语句或所有语句已被注释');
     return;
   }
 
@@ -104,14 +103,15 @@ const uncommentLog = vscode.commands.registerCommand('log-rush.uncommentLog', fu
     txt = document.getText(selection);
   
     // 正则表达式匹配被注释的 console 调用
-    const regex = /^(.*?)\/\/\s*(console\s*\.\s*(log|info|error|warn|debug|table|dir|trace)\s*\(.*)$/gm;
+    const regex = /^(\s*)\/\/\s*(console\s*\.\s*(log|info|error|warn|debug|table|dir|trace)\s*\([^)]*\)\s*;?)$/gm;
+
     
     // 取消注释 console 语句
     const newText = txt.replace(regex, '$1$2');
     
     // 如果没有发生实际替换，提醒用户
     if (newText === txt) {
-      VSCodeHelper.showInfoMessage('没有找到被注释的 Console 语句');
+      VSCodeHelper.showWarningMessage('没有找到被注释的 Console 语句');
       return;
     }
   
