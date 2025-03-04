@@ -3,7 +3,7 @@ import * as path from 'path';
 
 import { LogConfig, LogFormatType, LogType } from '@/types/index';
 function getLogConfig(): LogConfig {
-    const logOption = vscode.workspace.getConfiguration("quick-console-logger");
+    const logOption = vscode.workspace.getConfiguration("log-rush");
     
     return {
       logMethod: logOption.get("LogMethod") || "console.log",
@@ -98,7 +98,9 @@ function generateLogStatement(
   }
 function insertConsoleLog(logType:LogType){
     const editor=vscode.window.activeTextEditor;
-    if(!editor) return;
+    if(!editor) {
+      return;
+    }
     const document=editor.document;
     const varSelection=editor.selection;
     const word=document.getText(varSelection);//word is the selected text
@@ -118,25 +120,25 @@ function insertConsoleLog(logType:LogType){
     });
 }
 const quickLog = vscode.commands.registerTextEditorCommand(
-    "quick-console-logger.qlog",
+    "log-rush.qlog",
     function() {
       insertConsoleLog(LogType.LOG);
     }
   );
   const quickError = vscode.commands.registerTextEditorCommand(
-    "quick-console-logger.qerror",
+    "log-rush.qerror",
     function() {
       insertConsoleLog(LogType.ERROR);
     }
   );
   const quickWarn = vscode.commands.registerTextEditorCommand(
-    "quick-console-logger.qwarn",
+    "log-rush.qwarn",
     function() {
       insertConsoleLog(LogType.WARN);
     }
   );
   const quickInfo = vscode.commands.registerTextEditorCommand(
-    "quick-console-logger.qinfo",
+    "log-rush.qinfo",
     function() {
       insertConsoleLog(LogType.INFO);
     }
@@ -146,4 +148,4 @@ export {
     quickError,
     quickWarn,
     quickInfo
-}
+};

@@ -36,4 +36,4 @@ export{
     LogFormatType,
     LogType,
     LogConfig
-}
+};

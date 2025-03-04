@@ -52,22 +52,22 @@ Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (Mac) to open the command 
 You can customize the following options in VSCode settings:
 
 ### Basic Settings
-- `quick-console-logger.LogMethod`: Set the default log method (default: "console.log").
-- `quick-console-logger.VarPilotSymbol`: Set the variable delimiter (default: "::").
-- `quick-console-logger.QuotationMark`: Set the quote type ("single" or "double", default: "double").
-- `quick-console-logger.ShowLogSemicolon`: Whether to add a semicolon at the end of the log (default: true).
+- `log-rush.LogMethod`: Set the default log method (default: "console.log").
+- `log-rush.VarPilotSymbol`: Set the variable delimiter (default: "::").
+- `log-rush.QuotationMark`: Set the quote type ("single" or "double", default: "double").
+- `log-rush.ShowLogSemicolon`: Whether to add a semicolon at the end of the log (default: true).
 
 ### Display Settings
-- `quick-console-logger.ShowLineTag`: Whether to display the line number (default: true).
-- `quick-console-logger.LineTagAtBeginOrEnd`: Where to display the line number ("begin" or "end", default: "begin").
-- `quick-console-logger.ShowFilePath`: Whether to display the file path (default: true).
-- `quick-console-logger.FilePathType`: File path display type (default: "short").
+- `log-rush.ShowLineTag`: Whether to display the line number (default: true).
+- `log-rush.LineTagAtBeginOrEnd`: Where to display the line number ("begin" or "end", default: "begin").
+- `log-rush.ShowFilePath`: Whether to display the file path (default: true).
+- `log-rush.FilePathType`: File path display type (default: "short").
   - "short": Only display the file name.
   - "full": Display the relative path.
   - "custom": Custom format.
 
 ### Custom Format
-- `quick-console-logger.CustomFormat`: Custom log format (default: "${fileName} ${varName}::: "), supporting the following variables:
+- `log-rush.CustomFormat`: Custom log format (default: "${fileName} ${varName}::: "), supporting the following variables:
   - `${fileName}`: File name
   - `${filePath}`: Relative path
   - `${fullPath}`: Full path
@@ -170,22 +170,22 @@ MIT
 在 VSCode 设置中可以自定义以下选项：
 
 ### 基本设置
-- `quick-console-logger.LogMethod`: 设置默认的日志方法（默认："console.log"）
-- `quick-console-logger.VarPilotSymbol`: 设置变量分隔符（默认："::"）
-- `quick-console-logger.QuotationMark`: 设置引号类型（"single" 或 "double"，默认："double"）
-- `quick-console-logger.ShowLogSemicolon`: 是否在日志末尾添加分号（默认：true）
+- `log-rush.LogMethod`: 设置默认的日志方法（默认："console.log"）
+- `log-rush.VarPilotSymbol`: 设置变量分隔符（默认："::"）
+- `log-rush.QuotationMark`: 设置引号类型（"single" 或 "double"，默认："double"）
+- `log-rush.ShowLogSemicolon`: 是否在日志末尾添加分号（默认：true）
 
 ### 显示设置
-- `quick-console-logger.ShowLineTag`: 是否显示行号（默认：true）
-- `quick-console-logger.LineTagAtBeginOrEnd`: 行号显示位置（"begin" 或 "end"，默认："begin"）
-- `quick-console-logger.ShowFilePath`: 是否显示文件路径（默认：true）
-- `quick-console-logger.FilePathType`: 文件路径显示类型（默认："short"）
+- `log-rush.ShowLineTag`: 是否显示行号（默认：true）
+- `log-rush.LineTagAtBeginOrEnd`: 行号显示位置（"begin" 或 "end"，默认："begin"）
+- `log-rush.ShowFilePath`: 是否显示文件路径（默认：true）
+- `log-rush.FilePathType`: 文件路径显示类型（默认："short"）
   - "short": 仅显示文件名
   - "full": 显示相对路径
   - "custom": 自定义格式
 
 ### 自定义格式
-- `quick-console-logger.CustomFormat`: 自定义日志格式（默认："${fileName} ${varName}::: "），支持以下变量：
+- `log-rush.CustomFormat`: 自定义日志格式（默认："${fileName} ${varName}::: "），支持以下变量：
   - `${fileName}`: 文件名
   - `${filePath}`: 相对路径
   - `${fullPath}`: 完整路径

@@ -3,11 +3,10 @@ import * as assert from 'assert';
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
 import * as vscode from 'vscode';
-// import * as myExtension from '../../extension';
-import { describe,it,expect } from 'vitest';
-export function normalizePath(inputPath: string): string {
+
+function normalizePath(inputPath: string): string {
     return inputPath.replace(/\\/g, '/');
-    }
+}
 function getFileInfo(document: vscode.TextDocument) {
     // 获取文件名并去掉扩展名
     const fileName = path.basename(document.fileName);
@@ -23,28 +22,30 @@ function getFileInfo(document: vscode.TextDocument) {
 
     return { fileName, fileDir, relativePath };
 }
-describe('getFileInfo', () => {
-    it('should correctly extract file name, directory, and relative path', () => {
-        const mockDocument = {
-            fileName: 'C:\\project\\src\\file.ts',
-        } as vscode.TextDocument;
+(() => {
+    const mockDocument = {
+        fileName: 'C:\\project\\src\\file.ts',
+    } as vscode.TextDocument;
 
-        const result = getFileInfo(mockDocument);
+    const result = getFileInfo(mockDocument);
 
-        expect(result.fileName).toBe('file.ts');
-        expect(result.fileDir).toBe('C:/project/src');
-        expect(result.relativePath).toBe('src/file.ts');
-    });
+    assert.strictEqual(result.fileName, 'file.ts', 'Test Case 1: fileName should be file.ts');
+    assert.strictEqual(result.fileDir, 'C:/project/src', 'Test Case 1: fileDir should be C:/project/src');
+    assert.strictEqual(result.relativePath, 'src/file.ts', 'Test Case 1: relativePath should be src/file.ts');
 
-    it('should handle files with multiple dots in the name', () => {
-        const mockDocument = {
-            fileName: 'C:\\project\\src\\file.config.ts',
-        } as vscode.TextDocument;
+    console.log('Test Case 1 Passed!'); // 可选的成功提示
+})();
+// 测试用例 2: 文件名中包含多个点
+(() => {
+    const mockDocument = {
+        fileName: 'C:\\project\\src\\file.config.ts',
+    } as vscode.TextDocument;
 
-        const result = getFileInfo(mockDocument);
+    const result = getFileInfo(mockDocument);
 
-        expect(result.fileName).toBe('file.config.ts');
-        expect(result.fileDir).toBe('C:/project/src');
-        expect(result.relativePath).toBe('src/file.config.ts');
-    });
-});
+    assert.strictEqual(result.fileName, 'file.config.ts', 'Test Case 2: fileName should be file.config.ts');
+    assert.strictEqual(result.fileDir, 'C:/project/src', 'Test Case 2: fileDir should be C:/project/src');
+    assert.strictEqual(result.relativePath, 'src/file.config.ts', 'Test Case 2: relativePath should be src/file.config.ts');
+
+    console.log('Test Case 2 Passed!'); // 可选的成功提示
+})();

@@ -1,6 +1,6 @@
 import { VSCodeHelper } from "@/utils";
-import * as vscode from "vscode"
-const removeLog=vscode.commands.registerCommand('quick-console-logger.removeLog',function(){
+import * as vscode from "vscode";
+const removeLog=vscode.commands.registerCommand('log-rush.removeLog',function(){
     const editor=vscode.window.activeTextEditor;
     if(!editor){
     return;
@@ -29,9 +29,9 @@ const removeLog=vscode.commands.registerCommand('quick-console-logger.removeLog'
         const count=(txt.match(regex)||[]).length;
         VSCodeHelper.showInfoMessage(`成功移除了 ${count} 个 Console 语句`);
     }
-})
 });
-const commentLog=vscode.commands.registerCommand('quick-console-logger.commentLog',function(){
+});
+const commentLog=vscode.commands.registerCommand('log-rush.commentLog',function(){
     const editor = vscode.window.activeTextEditor;
   if (!editor) {
     return;
@@ -80,7 +80,7 @@ const commentLog=vscode.commands.registerCommand('quick-console-logger.commentLo
     }
   });
 });
-const uncommentLog = vscode.commands.registerCommand('quick-console-logger.uncommentLog', function () {
+const uncommentLog = vscode.commands.registerCommand('log-rush.uncommentLog', function () {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
       return;
@@ -128,4 +128,4 @@ const uncommentLog = vscode.commands.registerCommand('quick-console-logger.uncom
     removeLog,
     commentLog,
     uncommentLog
-  }
+  };
