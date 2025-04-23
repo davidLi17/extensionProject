@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 
 import { LogConfig, LogFormatType, LogType } from "@/types/index";
+import { LogHighlighter } from "@/utils/logHighlighter";
 function getLogConfig(): LogConfig {
 	const logOption = vscode.workspace.getConfiguration("log-rush");
 
@@ -130,8 +131,16 @@ function insertConsoleLog(logType: LogType) {
 				logMethod
 			);
 			editBuilder.insert(insertSection.start, logStatement);
-		});
+		}).then(()=>{
+			if(editor){
+				setTimeout(()=>{
+					LogHighlighter.updateHighlights(editor);
+				}, 100);
+			}
+		})
 	});
+
+	
 }
 const quickLog = vscode.commands.registerTextEditorCommand(
 	"log-rush.qlog",

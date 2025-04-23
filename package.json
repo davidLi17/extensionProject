@@ -79,9 +79,47 @@
 					"type": "string",
 					"default": "${fileName} ${varName}::: ",
 					"description": "Custom log format, available variables: ${fileName}, ${filePath}, ${fullPath}, ${varName}, ${lineNumber}|自定义日志格式，可用变量：${fileName}, ${filePath}, ${fullPath}, ${varName}, ${lineNumber}"
+				},
+				"log-rush.EnableHighlight": {
+					"type": "boolean",
+					"default": true,
+					"description": "是否启用日志高亮显示"
+				},
+				"log-rush.HighlightColor": {
+					"type": "string",
+					"default": "rgba(255, 215, 0, 0.2)",
+					"description": "日志高亮的背景颜色"
+				},
+				"log-rush.HighlightBorderColor": {
+					"type": "string",
+					"default": "rgba(255, 215, 0, 0.6)",
+					"description": "日志高亮的边框颜色"
 				}
 			}
 		},
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "log-rush-explorer",
+					"title": "LogRush",
+					"icon": "$(output)"
+				}
+			]
+		},
+		"views": {
+			"log-rush-explorer": [
+				{
+					"id": "logRushExplorer",
+					"name": "日志浏览器"
+				}
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "logRushExplorer",
+				"contents": "当前没有找到任何日志语句。\n[切换模式](command:log-rush.toggleExplorerMode)\n[刷新](command:log-rush.refreshLogExplorer)"
+			}
+		],
 		"commands": [
 			{
 				"command": "log-rush.qlog",
@@ -110,6 +148,32 @@
 			{
 				"command": "log-rush.uncommentLog",
 				"title": "Uncomment all console statements"
+			},
+			{
+				"command": "log-rush.toggleHighlight",
+				"title": "LogRush: 开关日志高亮"
+			},
+			{
+				"command": "log-rush.nextLog",
+				"title": "LogRush: 跳转到下一个日志"
+			},
+			{
+				"command": "log-rush.previousLog",
+				"title": "LogRush: 跳转到上一个日志"
+			},
+			{
+				"command": "log-rush.recenterTop",
+				"title": "LogRush: 让光标在 editor`s viewport的top和center切换"
+			},
+			{
+				"command": "log-rush.refreshLogExplorer",
+				"title": "刷新日志浏览器",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "log-rush.toggleExplorerMode",
+				"title": "切换浏览模式 (当前文件/工作区)",
+				"icon": "$(symbol-file)"
 			}
 		],
 		"keybindings": [
@@ -143,7 +207,28 @@
 				"mac": "cmd+f3",
 				"when": "editorTextFocus"
 			}
-		]
+		],
+		"menus": {
+			"view/title": [
+				{
+					"command": "log-rush.refreshLogExplorer",
+					"when": "view == logRushExplorer",
+					"group": "navigation"
+				},
+				{
+					"command": "log-rush.toggleExplorerMode",
+					"when": "view == logRushExplorer",
+					"group": "navigation"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "log-rush.openLogLocation",
+					"when": "viewItem == logItem",
+					"group": "inline"
+				}
+			]
+		}
 	},
 	"scripts": {
 		"vscode:prepublish": "pnpm run package",

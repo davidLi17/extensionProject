@@ -175,7 +175,14 @@ MIT
   - `${fullPath}`: 完整路径（示例：/Users/username/project/src/config.tsx）
   - `${varName}`: 变量名（示例：columns）
   - `${lineNumber}`: 行号（示例：line:10）
+### 日志导航与高亮功能
 
+- 高亮显示：所有console语句会被自动高亮显示，方便识别
+- 日志导航：使用快捷键在不同日志语句间快速跳转
+  - 切换高亮: `Ctrl+Shift+H` (Mac: `Cmd+Shift+H`) [H=>Highlight]
+  - 下一个日志: `Alt+N` [N=>Next]
+  - 上一个日志: `Alt+P` [P=>Previous]
+- 状态栏指示器：显示当前文件中的日志数量和当前位置
 <a name="示例"></a>
 ### 📝 示例
 
