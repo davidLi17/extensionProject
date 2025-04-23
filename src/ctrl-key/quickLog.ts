@@ -1,151 +1,160 @@
-import * as vscode from 'vscode';
-import * as path from 'path';
+import * as vscode from "vscode";
+import * as path from "path";
 
-import { LogConfig, LogFormatType, LogType } from '@/types/index';
+import { LogConfig, LogFormatType, LogType } from "@/types/index";
 function getLogConfig(): LogConfig {
-    const logOption = vscode.workspace.getConfiguration("log-rush");
-    
-    return {
-      logMethod: logOption.get("LogMethod") || "console.log",
-      varPilotSymbol: logOption.get("VarPilotSymbol") || '::',
-      quotationMark: logOption.get("QuotationMark") === "single" ? `'` : `"`,
-      showLogSemicolon: logOption.get("ShowLogSemicolon") || false,
-      showLineNumber: logOption.get("ShowLineTag") || false,
-      showFilePath: logOption.get("ShowFilePath") || false,
-      filePathType: logOption.get("FilePathType") || LogFormatType.SHORT,
-      lineTagPosition: logOption.get("LineTagAtBeginOrEnd") || 'begin',
-      customFormat: logOption.get("CustomFormat") || '${fileName} ${varName}::: '
-    };
-  }
+	const logOption = vscode.workspace.getConfiguration("log-rush");
+
+	return {
+		logMethod: logOption.get("LogMethod") || "console.log",
+		varPilotSymbol: logOption.get("VarPilotSymbol") || "::",
+		quotationMark: logOption.get("QuotationMark") === "single" ? `'` : `"`,
+		showLogSemicolon: logOption.get("ShowLogSemicolon") || false,
+		showLineNumber: logOption.get("ShowLineTag") || false,
+		showFilePath: logOption.get("ShowFilePath") || false,
+		filePathType: logOption.get("FilePathType") || LogFormatType.SHORT,
+		lineTagPosition: logOption.get("LineTagAtBeginOrEnd") || "begin",
+		customFormat: logOption.get("CustomFormat") || "${fileName} ${varName}::: ",
+	};
+}
 function getLogEnd(config: LogConfig): string {
-  return config.showLogSemicolon ? ");" : ")";
+	return config.showLogSemicolon ? ");" : ")";
 }
 export function normalizePath(inputPath: string): string {
-  return inputPath.replace(/\\/g, '/');
-  }
-  export  function getFileInfo(document: vscode.TextDocument) {
-    // 获取文件名并去掉扩展名
-    const fileName = path.basename(document.fileName);
+	return inputPath.replace(/\\/g, "/");
+}
+export function getFileInfo(document: vscode.TextDocument) {
+	// 获取文件名并去掉扩展名
+	const fileName = path.basename(document.fileName);
 
-    // 获取文件目录路径并标准化
-    const fileDir = normalizePath(path.dirname(document.fileName));
+	// 获取文件目录路径并标准化
+	const fileDir = normalizePath(path.dirname(document.fileName));
 
-    // 获取最后一级目录名称
-    const dirName = path.basename(fileDir);
+	// 获取最后一级目录名称
+	const dirName = path.basename(fileDir);
 
-    // 生成相对路径并标准化
-    const relativePath = normalizePath(path.join(dirName, fileName));
+	// 生成相对路径并标准化
+	const relativePath = normalizePath(path.join(dirName, fileName));
 
-    return { fileName, fileDir, relativePath };
+	return { fileName, fileDir, relativePath };
 }
 function generateLogStatement(
-    document: vscode.TextDocument,
-    insertSection: vscode.Selection,
-    word: string,
-    config: LogConfig,
-    logMethod: string = config.logMethod
-  ): string {
-    // 获取文件信息
-    const fileName = path.basename(document.fileName);
-    const fileDir = normalizePath(path.dirname(document.fileName));
-    const dirName = path.basename(fileDir);
-    const relativePath = normalizePath(path.join(dirName, fileName));
-    
-    // 获取行号信息
-    const lineNumber = config.showLineNumber ? `line:${insertSection.end.line + 1}` : '';
-    
-    // 构建文件路径部分
-    let filePathStr = '';
-    if (config.showFilePath) {
-      switch (config.filePathType) {
-        case LogFormatType.SHORT:
-          filePathStr = fileName;
-          break;
-        case LogFormatType.FULL:
-          filePathStr = relativePath;
-          break;
-        case LogFormatType.CUSTOM:
-          filePathStr = normalizePath(document.fileName); // 完整路径，可以自定义处理
-          break;
-      }
-    }
-  
-    // 构建日志前缀
-    let logPrefix = '';
-    
-    if (config.customFormat && config.filePathType === LogFormatType.CUSTOM) {
-      // 使用自定义格式
-      logPrefix = config.customFormat
-        .replace('${fileName}', fileName)
-        .replace('${filePath}', relativePath)
-        .replace('${fullPath}', normalizePath(document.fileName))
-        .replace('${varName}', word)
-        .replace('${lineNumber}', lineNumber);
-    } else {
-      // 使用标准格式
-      if (config.lineTagPosition === 'begin' && lineNumber) {
-        logPrefix = `${lineNumber} ${filePathStr} ${word}${config.varPilotSymbol}`;
-      } else {
-        logPrefix = `${filePathStr} ${word}${config.varPilotSymbol}`;
-        if (lineNumber) {
-          logPrefix += ` ${lineNumber}`;
-        }
-      }
-    }
-  
-    // 构建完整日志语句
-    return `${logMethod}(${config.quotationMark}${logPrefix}${config.quotationMark}, ${word}${getLogEnd(config)}`;
-  }
-function insertConsoleLog(logType:LogType){
-    const editor=vscode.window.activeTextEditor;
-    if(!editor) {
-      return;
-    }
-    const document=editor.document;
-    const varSelection=editor.selection;
-    const word=document.getText(varSelection);//word is the selected text
-    const config=getLogConfig();
-    const logMethod=`console.${logType}`;
-    if(!word){
-        const value=new vscode.SnippetString(`${logMethod}(${config.varPilotSymbol}${config.quotationMark}${config.varPilotSymbol}${getLogEnd(config)})`);
-        editor.insertSnippet(value,varSelection.start);
-        return;
-    }
-    vscode.commands.executeCommand("editor.action.insertLineAfter").then(()=>{
-        const insertSection=editor.selection;
-        editor.edit((editBuilder)=>{
-            const logStatement=generateLogStatement(document, insertSection, word, config, logMethod);
-            editBuilder.insert(insertSection.start,logStatement);
-        });
-    });
+	document: vscode.TextDocument,
+	insertSection: vscode.Selection,
+	word: string,
+	config: LogConfig,
+	logMethod: string = config.logMethod
+): string {
+	// 获取文件信息
+	const fileName = path.basename(document.fileName);
+	const fileDir = normalizePath(path.dirname(document.fileName));
+	const dirName = path.basename(fileDir);
+	const relativePath = normalizePath(path.join(dirName, fileName));
+
+	// 获取行号信息
+	const lineNumber = config.showLineNumber
+		? `line:${insertSection.end.line + 1}`
+		: "";
+
+	// 构建文件路径部分
+	let filePathStr = "";
+	if (config.showFilePath) {
+		switch (config.filePathType) {
+			case LogFormatType.SHORT:
+				filePathStr = fileName;
+				break;
+			case LogFormatType.FULL:
+				filePathStr = relativePath;
+				break;
+			case LogFormatType.CUSTOM:
+				filePathStr = normalizePath(document.fileName); // 完整路径，可以自定义处理
+				break;
+		}
+	}
+
+	// 构建日志前缀
+	let logPrefix = "";
+
+	if (config.customFormat && config.filePathType === LogFormatType.CUSTOM) {
+		// 使用自定义格式
+		logPrefix = config.customFormat
+			.replace("${fileName}", fileName)
+			.replace("${filePath}", relativePath)
+			.replace("${fullPath}", normalizePath(document.fileName))
+			.replace("${varName}", word)
+			.replace("${lineNumber}", lineNumber);
+	} else {
+		// 使用标准格式
+		if (config.lineTagPosition === "begin" && lineNumber) {
+			logPrefix = `${lineNumber} ${filePathStr} ${word}${config.varPilotSymbol}`;
+		} else {
+			logPrefix = `${filePathStr} ${word}${config.varPilotSymbol}`;
+			if (lineNumber) {
+				logPrefix += ` ${lineNumber}`;
+			}
+		}
+	}
+
+	// 构建完整日志语句
+	return `${logMethod}(${config.quotationMark}${logPrefix}${
+		config.quotationMark
+	}, ${word}${getLogEnd(config)}`;
+}
+function insertConsoleLog(logType: LogType) {
+	const editor = vscode.window.activeTextEditor;
+	if (!editor) {
+		return;
+	}
+	const document = editor.document;
+	const varSelection = editor.selection;
+	const word = document.getText(varSelection); //word is the selected text
+	const config = getLogConfig();
+	const logMethod = `console.${logType}`;
+	if (!word) {
+		const value = new vscode.SnippetString(
+			`${logMethod}(${config.varPilotSymbol}${config.quotationMark}${
+				config.varPilotSymbol
+			}${getLogEnd(config)})`
+		);
+		editor.insertSnippet(value, varSelection.start);
+		return;
+	}
+	vscode.commands.executeCommand("editor.action.insertLineAfter").then(() => {
+		const insertSection = editor.selection;
+		editor.edit((editBuilder) => {
+			const logStatement = generateLogStatement(
+				document,
+				insertSection,
+				word,
+				config,
+				logMethod
+			);
+			editBuilder.insert(insertSection.start, logStatement);
+		});
+	});
 }
 const quickLog = vscode.commands.registerTextEditorCommand(
-    "log-rush.qlog",
-    function() {
-      insertConsoleLog(LogType.LOG);
-    }
-  );
-  const quickError = vscode.commands.registerTextEditorCommand(
-    "log-rush.qerror",
-    function() {
-      insertConsoleLog(LogType.ERROR);
-    }
-  );
-  const quickWarn = vscode.commands.registerTextEditorCommand(
-    "log-rush.qwarn",
-    function() {
-      insertConsoleLog(LogType.WARN);
-    }
-  );
-  const quickInfo = vscode.commands.registerTextEditorCommand(
-    "log-rush.qinfo",
-    function() {
-      insertConsoleLog(LogType.INFO);
-    }
-  );
-export {
-    quickLog,
-    quickError,
-    quickWarn,
-    quickInfo
-};
+	"log-rush.qlog",
+	function () {
+		insertConsoleLog(LogType.LOG);
+	}
+);
+const quickError = vscode.commands.registerTextEditorCommand(
+	"log-rush.qerror",
+	function () {
+		insertConsoleLog(LogType.ERROR);
+	}
+);
+const quickWarn = vscode.commands.registerTextEditorCommand(
+	"log-rush.qwarn",
+	function () {
+		insertConsoleLog(LogType.WARN);
+	}
+);
+const quickInfo = vscode.commands.registerTextEditorCommand(
+	"log-rush.qinfo",
+	function () {
+		insertConsoleLog(LogType.INFO);
+	}
+);
+export { quickLog, quickError, quickWarn, quickInfo };

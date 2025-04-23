@@ -1,87 +1,90 @@
-<!-- EN: Start of English section -->
-## Navigation
+# 📊 LogRush
 
-- [Go to English Section](#en-section)
-- [中文部分](#zh-section)
+> A powerful VSCode extension for quickly inserting, managing, and cleaning up console log statements.
 
-<a name="en-section"></a>
-# Quick Console Logger
+[English](#english-guide) | [Chinese](#chinese-guide)
 
-A powerful VSCode extension for quickly inserting, managing, and cleaning up console log statements.
 
-## Features
+<a name="english-guide"></a>
+## English Guide
 
-### Quick Log Insertion
+### 📋 Table of Contents
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Examples](#examples)
+- [Development](#development)
+
+<a name="features"></a>
+### 🚀 Features
+
+#### Quick Log Insertion
 - Supports multiple log types:
   - `console.log` - Normal logs
-  - `console.info` - Information logs
-  - `console.warn` - Warning logs
   - `console.error` - Error logs
-- Smart variable logging: Automatically generates log statements with variable names when a variable is selected.
-- Customizable log format: Supports various format options such as filename, line number, custom delimiters, etc.
-- Supports JavaScript and TypeScript files.
+- Smart variable logging: Automatically generates log statements with variable names when a variable is selected
+- Customizable log format: Supports filename, line number, custom delimiters, and more
+- Supports JavaScript and TypeScript files
 
-### Log Management
-- Remove all console statements with one click.
-- Batch comment/uncomment console statements.
-- Supports log management for selected areas or the entire file.
+#### Log Management
+- Remove all console statements with one click
+- Batch comment/uncomment console statements
+- Supports log management for selected areas or the entire file
 
-## Installation
+<a name="installation"></a>
+### 📥 Installation
 
-Search for "Quick Console Logger" in the VSCode extension marketplace and install it.
+Search for "LogRush" in the VSCode extension marketplace and install it.
 
-## Usage
+<a name="usage"></a>
+### 💻 Usage
 
-### Keyboard Shortcuts
+#### Keyboard Shortcuts
 - Insert `console.log`: `Ctrl+1` (Mac: `Cmd+1`)
 - Insert `console.error`: `Ctrl+2` (Mac: `Cmd+2`)
 - Comment all console statements: `Ctrl+F2` (Mac: `Cmd+F2`)
 
-### Command Palette
-Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (Mac) to open the command palette, and you can use the following commands:
-- `Quick Console Logger: Insert console.log`
-- `Quick Console Logger: Insert console.error`
-- `Quick Console Logger: Insert console.warn`
-- `Quick Console Logger: Insert console.info`
-- `Quick Console Logger: Remove Console Logs`
-- `Quick Console Logger: Comment Console Logs`
-- `Quick Console Logger: Uncomment Console Logs`
 
-## Configuration Options
+<a name="configuration"></a>
+### ⚙️ Configuration
 
 You can customize the following options in VSCode settings:
 
-### Basic Settings
-- `log-rush.LogMethod`: Set the default log method (default: "console.log").
-- `log-rush.VarPilotSymbol`: Set the variable delimiter (default: "::").
-- `log-rush.QuotationMark`: Set the quote type ("single" or "double", default: "double").
-- `log-rush.ShowLogSemicolon`: Whether to add a semicolon at the end of the log (default: true).
+#### Basic Settings
+- `logrush.LogMethod`: Set the default log method (default: "console.log")
+- `logrush.VarPilotSymbol`: Set the variable delimiter (default: "::")
+- `logrush.QuotationMark`: Set the quote type ("single" or "double", default: "double")
+- `logrush.ShowLogSemicolon`: Whether to add a semicolon at the end of the log (default: true)
 
-### Display Settings
-- `log-rush.ShowLineTag`: Whether to display the line number (default: true).
-- `log-rush.LineTagAtBeginOrEnd`: Where to display the line number ("begin" or "end", default: "begin").
-- `log-rush.ShowFilePath`: Whether to display the file path (default: true).
-- `log-rush.FilePathType`: File path display type (default: "short").
-  - "short": Only display the file name.
-  - "full": Display the relative path.
-  - "custom": Custom format.
+#### Display Settings
+- `logrush.ShowLineTag`: Whether to display the line number (default: true)
+- `logrush.LineTagAtBeginOrEnd`: Where to display the line number ("begin" or "end", default: "begin")
+- `logrush.ShowFilePath`: Whether to display the file path (default: true)
+- `logrush.FilePathType`: File path display type (default: "short")
+  - "short": Only display the file name
+  - "full": Display the relative path
+  - "custom": Custom format
 
-### Custom Format
-- `log-rush.CustomFormat`: Custom log format (default: "${fileName} ${varName}::: "), supporting the following variables:
-  - `${fileName}`: File name
-  - `${filePath}`: Relative path
-  - `${fullPath}`: Full path
-  - `${varName}`: Variable name
-  - `${lineNumber}`: Line number
+#### Custom Format
+Recommended configuration: `[Custom name]:${filePath} ${varName}:::`
 
-## Examples
+- `logrush.CustomFormat`: Custom log format (default: "${fileName} ${varName}::: "), supporting the following variables:
+  - `${fileName}`: File name (example: config.tsx)
+  - `${filePath}`: Relative path (example: src/config.tsx)
+  - `${fullPath}`: Full path (example: /Users/username/project/src/config.tsx)
+  - `${varName}`: Variable name (example: columns)
+  - `${lineNumber}`: Line number (example: line:10)
 
-### Basic Usage
-1. Select a variable.
-2. Use a shortcut or command to insert a log.
-3. Automatically generate a formatted log statement on the next line.
+<a name="examples"></a>
+### 📝 Examples
 
-### Log Format Examples
+#### Basic Usage
+1. Select a variable
+2. Use a shortcut or command to insert a log
+3. Automatically generate a formatted log statement on the next line
+
+#### Log Format Examples
 ```javascript
 // Default format
 console.log("index.js myVariable::", myVariable);
@@ -93,9 +96,10 @@ console.log("line:10 index.js myVariable::", myVariable);
 console.log("[DEBUG][index.js:10] myVariable::", myVariable);
 ```
 
-## Development
+<a name="development"></a>
+### 🛠️ Development
 
-### Project Structure
+#### Project Structure
 ```
 src/
   ├── ctrl-key/
@@ -103,103 +107,84 @@ src/
   │   └── quickRemoveLog.ts # Log management functionality
   ├── types/
   │   └── index.ts         # Type definitions
+  ├── utils/
+  │   └── index.ts         # Helper utilities
   └── extension.ts         # Extension entry point
 ```
 
-### Build and Test
-1. Clone the repository.
-2. Run `npm install` to install dependencies.
-3. Press F5 to start a debugging instance.
+#### Build and Test
+1. Clone the repository
+2. Run `npm install` to install dependencies
+3. Press F5 to start a debugging instance
 
-## Contribution
-
+#### Contribution
 Welcome to submit Issues and Pull Requests!
 
-## License
-
+#### License
 MIT
-<!-- EN: End of English section -->
 
-<!-- ZH: Start of Chinese section -->
-<a name="zh-section"></a>
+[🔝 Back to Top](#logrush)
 
-# Quick Console Logger (快速控制台日志)
+---
 
-一个强大的 VSCode 扩展，用于快速插入、管理和清理控制台日志语句。
+<a name="chinese-guide"></a>
+## 中文指南
 
-## 功能特性
+### 📋 目录
+- [功能特性](#功能特性)
+- [安装](#安装)
+- [使用方法](#使用方法)
+- [配置选项](#配置选项)
+- [示例](#示例)
+- [开发](#开发)
 
-### 快速插入日志
+<a name="功能特性"></a>
+### 🚀 功能特性
+
+#### 快速插入日志
 - 支持多种日志类型：
   - `console.log` - 普通日志
-  - `console.info` - 信息日志
-  - `console.warn` - 警告日志
   - `console.error` - 错误日志
 - 智能变量日志：选中变量后自动生成带变量名的日志语句
 - 自定义日志格式：支持文件名、行号、自定义分隔符等多种格式选项
 - 支持 JavaScript 和 TypeScript 文件
 
-### 日志管理
+#### 日志管理
 - 一键移除所有 console 语句
 - 批量注释/取消注释 console 语句
 - 支持选中区域或整个文件的日志管理
 
-## 安装
+<a name="安装"></a>
+### 📥 安装
 
-在 VSCode 扩展商店中搜索 "Quick Console Logger" 并安装。
+在 VSCode 扩展商店中搜索 "LogRush" 并安装。
 
-## 使用方法
+<a name="使用方法"></a>
+### 💻 使用方法
 
-### 快捷键
+#### 快捷键
 - 插入 console.log: `Ctrl+1` (Mac: `Cmd+1`)
 - 插入 console.error: `Ctrl+2` (Mac: `Cmd+2`)
 - 注释所有 console 语句: `Ctrl+F2` (Mac: `Cmd+F2`)
+#### 自定义格式
+推荐配置为: `[自定义名称]:${filePath} ${varName}:::`
 
-### 命令面板
-按 `Ctrl+Shift+P` (Windows/Linux) 或 `Cmd+Shift+P` (Mac) 打开命令面板，可以使用以下命令：
-- `Quick Console Logger: Insert console.log` (插入 console.log)
-- `Quick Console Logger: Insert console.error` (插入 console.error)
-- `Quick Console Logger: Insert console.warn` (插入 console.warn)
-- `Quick Console Logger: Insert console.info` (插入 console.info)
-- `Quick Console Logger: Remove Console Logs` (移除 Console 日志)
-- `Quick Console Logger: Comment Console Logs` (注释 Console 日志)
-- `Quick Console Logger: Uncomment Console Logs` (取消注释 Console 日志)
+- `logrush.CustomFormat`: 自定义日志格式（默认："${fileName} ${varName}::: "），支持以下变量：
+  - `${fileName}`: 文件名（示例：config.tsx）
+  - `${filePath}`: 相对路径（示例：src/config.tsx）
+  - `${fullPath}`: 完整路径（示例：/Users/username/project/src/config.tsx）
+  - `${varName}`: 变量名（示例：columns）
+  - `${lineNumber}`: 行号（示例：line:10）
 
-## 配置选项
+<a name="示例"></a>
+### 📝 示例
 
-在 VSCode 设置中可以自定义以下选项：
-
-### 基本设置
-- `log-rush.LogMethod`: 设置默认的日志方法（默认："console.log"）
-- `log-rush.VarPilotSymbol`: 设置变量分隔符（默认："::"）
-- `log-rush.QuotationMark`: 设置引号类型（"single" 或 "double"，默认："double"）
-- `log-rush.ShowLogSemicolon`: 是否在日志末尾添加分号（默认：true）
-
-### 显示设置
-- `log-rush.ShowLineTag`: 是否显示行号（默认：true）
-- `log-rush.LineTagAtBeginOrEnd`: 行号显示位置（"begin" 或 "end"，默认："begin"）
-- `log-rush.ShowFilePath`: 是否显示文件路径（默认：true）
-- `log-rush.FilePathType`: 文件路径显示类型（默认："short"）
-  - "short": 仅显示文件名
-  - "full": 显示相对路径
-  - "custom": 自定义格式
-
-### 自定义格式
-- `log-rush.CustomFormat`: 自定义日志格式（默认："${fileName} ${varName}::: "），支持以下变量：
-  - `${fileName}`: 文件名
-  - `${filePath}`: 相对路径
-  - `${fullPath}`: 完整路径
-  - `${varName}`: 变量名
-  - `${lineNumber}`: 行号
-
-## 示例
-
-### 基本使用
+#### 基本使用
 1. 选中变量
 2. 使用快捷键或命令插入日志
 3. 自动在下一行生成格式化的日志语句
 
-### 日志格式示例
+#### 日志格式示例
 ```javascript
 // 默认格式
 console.log("index.js myVariable::", myVariable);
@@ -210,10 +195,32 @@ console.log("line:10 index.js myVariable::", myVariable);
 // 自定义格式
 console.log("[DEBUG][index.js:10] myVariable::", myVariable);
 ```
+<a name="配置选项"></a>
+### ⚙️ 配置选项
 
-## 开发
+在 VSCode 设置中可以自定义以下选项：
 
-### 项目结构
+#### 基本设置
+- `logrush.LogMethod`: 设置默认的日志方法（默认："console.log"）
+- `logrush.VarPilotSymbol`: 设置变量分隔符（默认："::"）
+- `logrush.QuotationMark`: 设置引号类型（"single" 或 "double"，默认："double"）
+- `logrush.ShowLogSemicolon`: 是否在日志末尾添加分号（默认：true）
+
+#### 显示设置
+- `logrush.ShowLineTag`: 是否显示行号（默认：true）
+- `logrush.LineTagAtBeginOrEnd`: 行号显示位置（"begin" 或 "end"，默认："begin"）
+- `logrush.ShowFilePath`: 是否显示文件路径（默认：true）
+- `logrush.FilePathType`: 文件路径显示类型（默认："short"）
+  - "short": 仅显示文件名
+  - "full": 显示相对路径
+  - "custom": 自定义格式
+
+
+
+<a name="开发"></a>
+### 🛠️ 开发
+
+#### 项目结构
 ```
 src/
   ├── ctrl-key/
@@ -221,19 +228,20 @@ src/
   │   └── quickRemoveLog.ts # 日志管理功能
   ├── types/
   │   └── index.ts         # 类型定义
+  ├── utils/
+  │   └── index.ts         # 辅助工具
   └── extension.ts         # 扩展入口
 ```
 
-### 构建和测试
+#### 构建和测试
 1. 克隆仓库
 2. 运行 `npm install` 安装依赖
 3. 按 F5 启动调试实例
 
-## 贡献
-
+#### 贡献
 欢迎提交 Issue 和 Pull Request！
 
-## 许可证
-
+#### 许可证
 MIT
-<!-- ZH: End of Chinese section -->
+
+[🔝 返回顶部](#logrush)

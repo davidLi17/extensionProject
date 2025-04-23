@@ -1,174 +1,175 @@
 {
-  "name": "log-rush",
-  "displayName": "LogRush",
-  "description": "Quickly add and remove console.log statements with powerful shortcuts.Code faster, debug better, clean up easier! ",
-  "version": "1.0.1",
-  "publisher": "davidLi_317",
-  "repository": "https://github.com/davidLi17/extensionProject",
-  "issues": "https://github.com/davidLi17/extensionProject/issues",
-  "icon": "logo.png",
-  "engines": {
-    "vscode": ">=1.97.0"
-  },
-  "categories": [
-    "Debuggers"
-  ],
-  "activationEvents": [
-    "onLanguage:javascript",
-    "onLanguage:typescript"
-  ],
-  "main": "./dist/extension.js",
-  "contributes": {
-    "configuration": {
-      "title": "log-rush",
-      "properties": {
-        "log-rush.VarPilotSymbol": {
-          "type": "string",
-          "default": "::",
-          "description": "Variable Identifier|变量标识符号"
-        },
-        "log-rush.QuotationMark": {
-          "type": "string",
-          "enum": [
-            "single",
-            "double"
-          ],
-          "default": "double",
-          "description": "Quotation Mark Type (Single or Double)|引号类型（单引号或双引号）"
-        },
-        "log-rush.ShowLogSemicolon": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show Semicolon at the End of console.log|是否在 console.log 语句末尾显示分号"
-        },
-        "log-rush.LogMethod": {
-          "type": "string",
-          "default": "console.log",
-          "description": "Log Method (e.g., console.log, console.info)|日志方法（如：console.log, console.info 等）"
-        },
-        "log-rush.ShowLineTag": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show Line Tag|是否显示行号标记"
-        },
-        "log-rush.LineTagAtBeginOrEnd": {
-          "type": "string",
-          "enum": [
-            "begin",
-            "end"
-          ],
-          "default": "begin",
-          "description": "Line Tag Position (Beginning or End)|行号标记位置（开始或结束）"
-        },
-        "log-rush.ShowFilePath": {
-          "type": "boolean",
-          "default": true,
-          "description": "whether Show File Path|是否显示文件路径"
-        },
-        "log-rush.FilePathType": {
-          "type": "string",
-          "default": "short",
-          "enum": [
-            "short",
-            "full",
-            "custom"
-          ],
-          "description": "File Path Format Type (short, full, custom)|文件路径显示类型：short(仅文件名)、full(相对路径)、custom(自定义)"
-        },
-        "log-rush.CustomFormat": {
-          "type": "string",
-          "default": "${fileName} ${varName}::: ",
-          "description": "Custom log format, available variables: ${fileName}, ${filePath}, ${fullPath}, ${varName}, ${lineNumber}|自定义日志格式，可用变量：${fileName}, ${filePath}, ${fullPath}, ${varName}, ${lineNumber}"
-        }
-      }
-    },
-    "commands": [
-      {
-        "command": "log-rush.qlog",
-        "title": "Insert console.log"
-      },
-      {
-        "command": "log-rush.qerror",
-        "title": "Insert console.error"
-      },
-      {
-        "command": "log-rush.qwarn",
-        "title": "Insert console.warn"
-      },
-      {
-        "command": "log-rush.qinfo",
-        "title": "Insert console.info"
-      },
-      {
-        "command": "log-rush.removeLog",
-        "title": "Remove all console statements"
-      },
-      {
-        "command": "log-rush.commentLog",
-        "title": "Comment all console statements"
-      },
-      {
-        "command": "log-rush.uncommentLog",
-        "title": "Uncomment all console statements"
-      }
-    ],
-    "keybindings": [
-      {
-        "command": "log-rush.qlog",
-        "key": "ctrl+1",
-        "mac": "cmd+1",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "log-rush.qerror",
-        "key": "ctrl+2",
-        "mac": "cmd+2",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "log-rush.commentLog",
-        "key": "ctrl+f1",
-        "mac": "cmd+f1",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "log-rush.uncommentLog",
-        "key": "ctrl+f2",
-        "mac": "cmd+f2",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "log-rush.removeLog",
-        "key": "ctrl+f3",
-        "mac": "cmd+f3",
-        "when": "editorTextFocus"
-      }
-    ]
-  },
-  "scripts": {
-    "vscode:prepublish": "pnpm run package",
-    "mytest": "mocha out/test/**/*.test.js",
-    "compile": "webpack",
-    "watch": "webpack --watch",
-    "package": "webpack --mode production --devtool hidden-source-map",
-    "compile-tests": "tsc -p . --outDir out",
-    "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
-    "lint": "eslint src"
-  },
-  "devDependencies": {
-    "@types/mocha": "^10.0.10",
-    "@types/node": "20.x",
-    "@types/vscode": "^1.97.0",
-    "@typescript-eslint/eslint-plugin": "^8.22.0",
-    "@typescript-eslint/parser": "^8.22.0",
-    "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1",
-    "eslint": "^9.19.0",
-    "ts-loader": "^9.5.2",
-    "typescript": "^5.7.3",
-    "webpack": "^5.97.1",
-    "webpack-cli": "^6.0.1"
-  },
-  "license": "MIT"
+	"name": "log-rush",
+	"displayName": "LogRush",
+	"description": "Quickly add and remove console.log statements with powerful shortcuts.Code faster, debug better, clean up easier! ",
+	"version": "1.0.1",
+	"publisher": "davidLi317",
+	"repository": "https://github.com/davidLi17/extensionProject",
+	"issues": "https://github.com/davidLi17/extensionProject/issues",
+	"icon": "logo.png",
+	"engines": {
+		"vscode": ">=1.2.0"
+	},
+	"categories": [
+		"Debuggers"
+	],
+	"activationEvents": [
+		"onLanguage:javascript",
+		"onLanguage:typescript"
+	],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"configuration": {
+			"title": "log-rush",
+			"properties": {
+				"log-rush.VarPilotSymbol": {
+					"type": "string",
+					"default": "::",
+					"description": "Variable Identifier|变量标识符号"
+				},
+				"log-rush.QuotationMark": {
+					"type": "string",
+					"enum": [
+						"single",
+						"double"
+					],
+					"default": "double",
+					"description": "Quotation Mark Type (Single or Double)|引号类型（单引号或双引号）"
+				},
+				"log-rush.ShowLogSemicolon": {
+					"type": "boolean",
+					"default": true,
+					"description": "Show Semicolon at the End of console.log|是否在 console.log 语句末尾显示分号"
+				},
+				"log-rush.LogMethod": {
+					"type": "string",
+					"default": "console.log",
+					"description": "Log Method (e.g., console.log, console.info)|日志方法（如：console.log, console.info 等）"
+				},
+				"log-rush.ShowLineTag": {
+					"type": "boolean",
+					"default": true,
+					"description": "Show Line Tag|是否显示行号标记"
+				},
+				"log-rush.LineTagAtBeginOrEnd": {
+					"type": "string",
+					"enum": [
+						"begin",
+						"end"
+					],
+					"default": "begin",
+					"description": "Line Tag Position (Beginning or End)|行号标记位置（开始或结束）"
+				},
+				"log-rush.ShowFilePath": {
+					"type": "boolean",
+					"default": true,
+					"description": "whether Show File Path|是否显示文件路径"
+				},
+				"log-rush.FilePathType": {
+					"type": "string",
+					"default": "short",
+					"enum": [
+						"short",
+						"full",
+						"custom"
+					],
+					"description": "File Path Format Type (short, full, custom)|文件路径显示类型：short(仅文件名)、full(相对路径)、custom(自定义)"
+				},
+				"log-rush.CustomFormat": {
+					"type": "string",
+					"default": "${fileName} ${varName}::: ",
+					"description": "Custom log format, available variables: ${fileName}, ${filePath}, ${fullPath}, ${varName}, ${lineNumber}|自定义日志格式，可用变量：${fileName}, ${filePath}, ${fullPath}, ${varName}, ${lineNumber}"
+				}
+			}
+		},
+		"commands": [
+			{
+				"command": "log-rush.qlog",
+				"title": "Insert console.log"
+			},
+			{
+				"command": "log-rush.qerror",
+				"title": "Insert console.error"
+			},
+			{
+				"command": "log-rush.qwarn",
+				"title": "Insert console.warn"
+			},
+			{
+				"command": "log-rush.qinfo",
+				"title": "Insert console.info"
+			},
+			{
+				"command": "log-rush.removeLog",
+				"title": "Remove all console statements"
+			},
+			{
+				"command": "log-rush.commentLog",
+				"title": "Comment all console statements"
+			},
+			{
+				"command": "log-rush.uncommentLog",
+				"title": "Uncomment all console statements"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "log-rush.qlog",
+				"key": "ctrl+1",
+				"mac": "cmd+1",
+				"when": "editorTextFocus"
+			},
+			{
+				"command": "log-rush.qerror",
+				"key": "ctrl+2",
+				"mac": "cmd+2",
+				"when": "editorTextFocus"
+			},
+			{
+				"command": "log-rush.commentLog",
+				"key": "ctrl+f1",
+				"mac": "cmd+f1",
+				"when": "editorTextFocus"
+			},
+			{
+				"command": "log-rush.uncommentLog",
+				"key": "ctrl+f2",
+				"mac": "cmd+f2",
+				"when": "editorTextFocus"
+			},
+			{
+				"command": "log-rush.removeLog",
+				"key": "ctrl+f3",
+				"mac": "cmd+f3",
+				"when": "editorTextFocus"
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "pnpm run package",
+		"mytest": "mocha out/test/**/*.test.js",
+		"compile": "webpack",
+		"watch": "webpack --watch",
+		"package": "webpack --mode production --devtool hidden-source-map",
+		"compile-tests": "tsc -p . --outDir out",
+		"watch-tests": "tsc -p . -w --outDir out",
+		"pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
+		"lint": "eslint src"
+	},
+	"devDependencies": {
+		"@types/vscode": "^1.2.0",
+		"@types/glob": "^8.0.0",
+		"@types/mocha": "^10.0.0",
+		"@types/node": "16.x",
+		"@typescript-eslint/eslint-plugin": "^8.22.0",
+		"@typescript-eslint/parser": "^8.22.0",
+		"@vscode/test-cli": "^0.0.10",
+		"@vscode/test-electron": "^2.4.1",
+		"eslint": "^9.19.0",
+		"ts-loader": "^9.5.2",
+		"typescript": "^5.7.3",
+		"webpack": "^5.97.1",
+		"webpack-cli": "^6.0.1"
+	},
+	"license": "MIT"
 }

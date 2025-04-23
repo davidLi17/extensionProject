@@ -1,52 +1,25 @@
 import { VSCodeHelper } from "@/utils";
 import * as vscode from "vscode";
-const removeLog=vscode.commands.registerCommand('log-rush.removeLog',function(){
-    const editor=vscode.window.activeTextEditor;
-    if(!editor){
-    return;
-    }
-    const document = editor.document;
-    let selection = editor.selection;
-    //如果没有选择文本,则默认选择整个文档.
-    let txt='';
-    let entireDocument =false;
-    if(selection.isEmpty){
-        const fullRange=new vscode.Range(0,0,document.lineCount-1,document.lineAt(document.lineCount-1).text.length);
-        selection=new vscode.Selection(fullRange.start,fullRange.end);
-        entireDocument=true;
-    }
-    txt=document.getText(selection);
 
-    const regex = /^\s*(?:\/\/\s*)?console\s*\.\s*(log|info|error|warn|debug|table|dir|trace|group|groupCollapsed|groupEnd|clear|count|countReset|time|timeLog)\s*\([^)]*\)\s*;?\s*$/gm;
-    const lines=txt.split('\n');
-    const filteredLines=lines.filter(lines=>!regex.test(lines));
-    const newText=filteredLines.join('\n');
+// 用于匹配 console 语句的正则表达式
+const CONSOLE_REGEX = /^\s*(console\s*\.\s*(log|info|error|warn|debug|table|dir|trace|group|groupCollapsed|groupEnd|clear|count|countReset|time|timeLog)\s*\([^)]*\)\s*;?\s*)$/gm;
+// 用于匹配已注释的 console 语句的正则表达式
+const COMMENTED_CONSOLE_REGEX = /^(\s*)\/\/\s*(console\s*\.\s*(log|info|error|warn|debug|table|dir|trace|group|groupCollapsed|groupEnd|clear|count|countReset|time|timeLog)\s*\([^)]*\)\s*;?\s*)$/gm;
 
-    if(newText===txt){
-        VSCodeHelper.showWarningMessage('没有找到 Console 语句');
-        return;
-    }
-    editor.edit(editBuilder=>{
-        editBuilder.replace(selection,newText);
-}).then(success=>{
-    if(success){
-        const count=(txt.match(regex)||[]).length;
-        VSCodeHelper.showInfoMessage(`成功移除了 ${count} 个 Console 语句`);
-    }
-});
-});
-const commentLog=vscode.commands.registerCommand('log-rush.commentLog',function(){
-    const editor = vscode.window.activeTextEditor;
+async function handleLogOperation(options: {
+  operation: 'remove' | 'comment' | 'uncomment';
+  successMessage: string;
+  warningMessage: string;
+  transform: (text: string) => string;
+}): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
   if (!editor) {
     return;
   }
-  
+
   const document = editor.document;
   let selection = editor.selection;
-  
-  // 如果没有选择文本，则默认选择整个文档
-  let txt = '';
-  
+
   if (selection.isEmpty) {
     const fullRange = new vscode.Range(
       0, 0,
@@ -55,77 +28,84 @@ const commentLog=vscode.commands.registerCommand('log-rush.commentLog',function(
     );
     selection = new vscode.Selection(fullRange.start, fullRange.end);
   }
-  
-  txt = document.getText(selection);
-  // 正则表达式匹配 console 调用的行
-  const regex = /^(\s*)(console\s*\.\s*(log|info|error|warn|debug|table|dir|trace)\s*\([^)]*\)\s*;?)$/gm;
 
-  
-    // 注释 console 语句，保留原有缩进
-    const newText = txt.replace(regex, '$1// $2');
-  
-  // 如果没有发生实际替换，提醒用户
+  const txt = document.getText(selection);
+  const newText = options.transform(txt);
+
   if (newText === txt) {
-    VSCodeHelper.showWarningMessage('没有找到 Console 语句或所有语句已被注释');
+    VSCodeHelper.showWarningMessage(options.warningMessage);
     return;
   }
 
-  editor.edit(editBuilder => {
+  const success = await editor.edit(editBuilder => {
     editBuilder.replace(selection, newText);
-  }).then(success => {
-    if (success) {
-      const count = (txt.match(regex) || []).length;
-      VSCodeHelper.showInfoMessage(`已注释 ${count} 个 Console 语句`);
+  });
+
+  if (success) {
+    let count = 0;
+    if (options.operation === 'remove') {
+      CONSOLE_REGEX.lastIndex = 0;
+      const matches1 = txt.match(CONSOLE_REGEX) || [];
+      COMMENTED_CONSOLE_REGEX.lastIndex = 0;
+      const matches2 = txt.match(COMMENTED_CONSOLE_REGEX) || [];
+      count = matches1.length + matches2.length;
+    } else if (options.operation === 'comment') {
+      CONSOLE_REGEX.lastIndex = 0;
+      count = (txt.match(CONSOLE_REGEX) || []).length;
+    } else {
+      COMMENTED_CONSOLE_REGEX.lastIndex = 0;
+      count = (txt.match(COMMENTED_CONSOLE_REGEX) || []).length;
+    }
+    VSCodeHelper.showInfoMessage(`${options.successMessage} ${count} 个 Console 语句`);
+  }
+}
+
+const removeLog = vscode.commands.registerCommand('log-rush.removeLog', () => {
+  return handleLogOperation({
+    operation: 'remove',
+    successMessage: '成功移除了',
+    warningMessage: '没有找到 Console 语句',
+    transform: (txt: string) => {
+      const lines = txt.split('\n');
+      const filteredLines = lines.filter(line => {
+        CONSOLE_REGEX.lastIndex = 0;
+        COMMENTED_CONSOLE_REGEX.lastIndex = 0;
+        return !CONSOLE_REGEX.test(line) && !COMMENTED_CONSOLE_REGEX.test(line);
+      });
+      return filteredLines.join('\n');
     }
   });
 });
-const uncommentLog = vscode.commands.registerCommand('log-rush.uncommentLog', function () {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      return;
-    }
-    
-    const document = editor.document;
-    let selection = editor.selection;
-    
-    // 如果没有选择文本，则默认选择整个文档
-    let txt = '';
-    
-    if (selection.isEmpty) {
-      const fullRange = new vscode.Range(
-        0, 0,
-        document.lineCount - 1,
-        document.lineAt(document.lineCount - 1).text.length
-      );
-      selection = new vscode.Selection(fullRange.start, fullRange.end);
-    }
-    
-    txt = document.getText(selection);
-  
-    // 正则表达式匹配被注释的 console 调用
-    const regex = /^(\s*)\/\/\s*(console\s*\.\s*(log|info|error|warn|debug|table|dir|trace)\s*\([^)]*\)\s*;?)$/gm;
 
-    
-    // 取消注释 console 语句
-    const newText = txt.replace(regex, '$1$2');
-    
-    // 如果没有发生实际替换，提醒用户
-    if (newText === txt) {
-      VSCodeHelper.showWarningMessage('没有找到被注释的 Console 语句');
-      return;
+const commentLog = vscode.commands.registerCommand('log-rush.commentLog', () => {
+  return handleLogOperation({
+    operation: 'comment',
+    successMessage: '已注释',
+    warningMessage: '没有找到 Console 语句或所有语句已被注释',
+    transform: (txt: string) => {
+      return txt.replace(CONSOLE_REGEX, (matchStr, p1, p2, offset, string) => {
+        // 获取行首的空白字符
+        const matchResult = matchStr.match(/^\s*/);
+        const indentation = matchResult ? matchResult[0] : '';
+        return `${indentation}// ${p1}`;
+      });
     }
-  
-    editor.edit(editBuilder => {
-      editBuilder.replace(selection, newText);
-    }).then(success => {
-      if (success) {
-        const count = (txt.match(regex) || []).length;
-        VSCodeHelper.showInfoMessage(`已取消注释 ${count} 个 Console 语句`);
-      }
-    });
   });
-  export {
-    removeLog,
-    commentLog,
-    uncommentLog
-  };
+});
+
+const uncommentLog = vscode.commands.registerCommand('log-rush.uncommentLog', () => {
+  return handleLogOperation({
+    operation: 'uncomment',
+    successMessage: '已取消注释',
+    warningMessage: '没有找到被注释的 Console 语句',
+    transform: (txt: string) => {
+      return txt.replace(COMMENTED_CONSOLE_REGEX, '$1$2');
+    }
+  });
+});
+
+export {
+  removeLog,
+  commentLog,
+  uncommentLog
+};
