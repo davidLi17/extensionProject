@@ -2,7 +2,7 @@
 
 > A powerful VSCode extension for quickly inserting, managing, and cleaning up console log statements.
 
-[English](#english-guide) | [Chinese](#chinese-guide)
+[English](#english-guide) | [Chinese](#chineseGuide)
 
 
 <a name="english-guide"></a>
@@ -32,6 +32,13 @@
 - Batch comment/uncomment console statements
 - Supports log management for selected areas or the entire file
 
+#### Log Explorer & Navigation
+- View all console statements in the sidebar explorer
+- Navigate between logs with keyboard shortcuts
+- Filter logs by current file or entire workspace
+- Highlight console statements for better visibility
+- Jump to any log statement with a single click
+
 <a name="installation"></a>
 ### 📥 Installation
 
@@ -44,6 +51,17 @@ Search for "LogRush" in the VSCode extension marketplace and install it.
 - Insert `console.log`: `Ctrl+1` (Mac: `Cmd+1`)
 - Insert `console.error`: `Ctrl+2` (Mac: `Cmd+2`)
 - Comment all console statements: `Ctrl+F2` (Mac: `Cmd+F2`)
+
+#### Log Navigation
+- Toggle log highlighting: `Ctrl+Shift+H` (Mac: `Cmd+Shift+H`)
+- Go to next log: `Alt+N`
+- Go to previous log: `Alt+P`
+
+#### Log Explorer
+- Click on the LogRush icon in the activity bar to open the Log Explorer
+- Toggle between "Current File" and "Workspace" modes using the icon in the view header
+- Click on any log item to navigate directly to it
+- Use the refresh button to update the log list
 
 
 <a name="configuration"></a>
@@ -65,6 +83,9 @@ You can customize the following options in VSCode settings:
   - "short": Only display the file name
   - "full": Display the relative path
   - "custom": Custom format
+- `logrush.EnableHighlight`: Whether to enable log highlighting (default: true)
+- `logrush.HighlightColor`: Background color for log highlights (default: "rgba(255, 215, 0, 0.2)")
+- `logrush.HighlightBorderColor`: Border color for log highlights (default: "rgba(255, 215, 0, 0.6)")
 
 #### Custom Format
 Recommended configuration: `[Custom name]:${filePath} ${varName}:::`
@@ -108,6 +129,8 @@ src/
   ├── types/
   │   └── index.ts         # Type definitions
   ├── utils/
+  │   ├── logExplorer.ts   # Log explorer sidebar functionality
+  │   ├── logHighlighter.ts # Log highlighting and navigation
   │   └── index.ts         # Helper utilities
   └── extension.ts         # Extension entry point
 ```
@@ -123,20 +146,20 @@ Welcome to submit Issues and Pull Requests!
 #### License
 MIT
 
-[🔝 Back to Top](#logrush)
+🔝 Back to Top
 
 ---
 
-<a name="chinese-guide"></a>
+<a name="chineseGuide"></a>
 ## 中文指南
 
 ### 📋 目录
-- [功能特性](#功能特性)
-- [安装](#安装)
-- [使用方法](#使用方法)
-- [配置选项](#配置选项)
-- [示例](#示例)
-- [开发](#开发)
+- 功能特性
+- 安装
+- 使用方法
+- 配置选项
+- 示例
+- 开发
 
 <a name="功能特性"></a>
 ### 🚀 功能特性
@@ -154,6 +177,13 @@ MIT
 - 批量注释/取消注释 console 语句
 - 支持选中区域或整个文件的日志管理
 
+#### 日志浏览器与导航
+- 在侧边栏中查看所有 console 语句
+- 使用快捷键在日志语句间快速导航
+- 可按当前文件或整个工作区筛选日志
+- 高亮显示 console 语句以提高可见性
+- 单击即可跳转到任意日志语句
+
 <a name="安装"></a>
 ### 📥 安装
 
@@ -166,6 +196,18 @@ MIT
 - 插入 console.log: `Ctrl+1` (Mac: `Cmd+1`)
 - 插入 console.error: `Ctrl+2` (Mac: `Cmd+2`)
 - 注释所有 console 语句: `Ctrl+F2` (Mac: `Cmd+F2`)
+
+#### 日志导航
+- 切换日志高亮: `Ctrl+Shift+H` (Mac: `Cmd+Shift+H`) [H=>Highlight]
+- 下一个日志: `Alt+N` [N=>Next]
+- 上一个日志: `Alt+P` [P=>Previous]
+
+#### 日志浏览器
+- 点击活动栏中的 LogRush 图标打开日志浏览器
+- 使用视图标题栏中的图标在"当前文件"和"工作区"模式之间切换
+- 点击任意日志项可直接导航至对应位置
+- 使用刷新按钮更新日志列表
+
 #### 自定义格式
 推荐配置为: `[自定义名称]:${filePath} ${varName}:::`
 
@@ -175,14 +217,7 @@ MIT
   - `${fullPath}`: 完整路径（示例：/Users/username/project/src/config.tsx）
   - `${varName}`: 变量名（示例：columns）
   - `${lineNumber}`: 行号（示例：line:10）
-### 日志导航与高亮功能
 
-- 高亮显示：所有console语句会被自动高亮显示，方便识别
-- 日志导航：使用快捷键在不同日志语句间快速跳转
-  - 切换高亮: `Ctrl+Shift+H` (Mac: `Cmd+Shift+H`) [H=>Highlight]
-  - 下一个日志: `Alt+N` [N=>Next]
-  - 上一个日志: `Alt+P` [P=>Previous]
-- 状态栏指示器：显示当前文件中的日志数量和当前位置
 <a name="示例"></a>
 ### 📝 示例
 
@@ -221,8 +256,9 @@ console.log("[DEBUG][index.js:10] myVariable::", myVariable);
   - "short": 仅显示文件名
   - "full": 显示相对路径
   - "custom": 自定义格式
-
-
+- `logrush.EnableHighlight`: 是否启用日志高亮显示（默认：true）
+- `logrush.HighlightColor`: 日志高亮的背景颜色（默认："rgba(255, 215, 0, 0.2)"）
+- `logrush.HighlightBorderColor`: 日志高亮的边框颜色（默认："rgba(255, 215, 0, 0.6)"）
 
 <a name="开发"></a>
 ### 🛠️ 开发
@@ -236,6 +272,8 @@ src/
   ├── types/
   │   └── index.ts         # 类型定义
   ├── utils/
+  │   ├── logExplorer.ts   # 日志浏览器侧边栏功能
+  │   ├── logHighlighter.ts # 日志高亮和导航功能
   │   └── index.ts         # 辅助工具
   └── extension.ts         # 扩展入口
 ```
@@ -251,4 +289,4 @@ src/
 #### 许可证
 MIT
 
-[🔝 返回顶部](#logrush)
+🔝 返回顶部
