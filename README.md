@@ -195,7 +195,9 @@ MIT
 #### 快捷键
 - 插入 console.log: `Ctrl+1` (Mac: `Cmd+1`)
 - 插入 console.error: `Ctrl+2` (Mac: `Cmd+2`)
-- 注释所有 console 语句: `Ctrl+F2` (Mac: `Cmd+F2`)
+- 注释所有 console 语句: `Ctrl+F1` (Mac: `Cmd+F1`)
+- 取消注释所有 console 语句: `Ctrl+F2` (Mac: `Cmd+F2`)
+- 移除所有 console 语句: `Ctrl+F3` (Mac: `Cmd+F3`)
 
 #### 日志导航
 - 切换日志高亮: `Ctrl+Shift+H` (Mac: `Cmd+Shift+H`) [H=>Highlight]

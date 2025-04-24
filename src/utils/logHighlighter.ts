@@ -1,202 +1,313 @@
 import * as vscode from "vscode";
-
+import { VSCodeHelper } from ".";
+type LogType = (typeof LogHighlighter.LOG_TYPES)[number];
 export class LogHighlighter {
-	// 日志装饰器类型
-	private static logDecorationType: vscode.TextEditorDecorationType;
-	// 保存当前文件中的所有日志位置
-	private static logPositions: vscode.Range[] = [];
-	// 当前高亮索引
-	private static currentIndex: number = -1;
-	// 状态栏项目
-	private static statusBarItem: vscode.StatusBarItem;
+  // Constants and configuration
+  public static readonly LOG_TYPES = [
+    "log",
+    "warn",
+    "error",
+    "info",
+    "debug",
+  ] as const;
+  private static readonly LOG_ICONS: Record<LogType, string> = {
+    log: "⭐️ log:",
+    warn: "⚠️ warn:",
+    error: "❌ error:",
+    info: "ℹ️ info:",
+    debug: "🔍 debug:",
+  };
+  private static readonly LOG_COLORS: Record<LogType, string> = {
+    log: "deepskyblue",
+    warn: "orange",
+    error: "red",
+    info: "lightgreen",
+    debug: "gray",
+  };
 
-	//add recenter top
-	private static previousCursorPosition: vscode.Position | null = null;
-	private static currentRevealType: vscode.TextEditorRevealType | null = null;
+  // State variables
+  private static logDecorationTypes: Record<
+    string,
+    vscode.TextEditorDecorationType
+  > = {};
+  private static logPositions: vscode.Range[] = [];
+  private static currentIndex: number = -1;
+  private static statusBarItem: vscode.StatusBarItem;
+  private static highlightEnabled: boolean = true;
+  private static previousCursorPosition: vscode.Position | null = null;
+  private static currentRevealType: vscode.TextEditorRevealType | null = null;
 
-	// 实现recenter-top功能，在居中和置顶之间交替
-	static recenterTop() {
-		const editor = vscode.window.activeTextEditor;
-		if (!editor) {
-			return;
-		}
+  // Initialize the highlighter
+  static initialize(context: vscode.ExtensionContext): void {
+    // Read configuration and create decorations
+    this.updateFromConfig();
 
-		const cursorPosition = editor.selection.active;
+    // Create and configure status bar item
+    this.statusBarItem = vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Right,
+      100
+    );
+    this.statusBarItem.text = "$(search)LogRush🚀: 0/0 日志";
+    this.statusBarItem.tooltip = "点击在日志语句间导航";
+    this.statusBarItem.command = "log-rush.nextLog";
+    context.subscriptions.push(this.statusBarItem);
 
-		// 决定下一个显示类型
-		if (
-			!this.currentRevealType ||
-			(this.previousCursorPosition &&
-				!cursorPosition.isEqual(this.previousCursorPosition))
-		) {
-			// 首次调用或光标位置改变，重置为居中显示
-			this.currentRevealType = vscode.TextEditorRevealType.InCenter;
-		} else if (
-			this.currentRevealType === vscode.TextEditorRevealType.InCenter
-		) {
-			// 上次是居中，这次置顶
-			this.currentRevealType = vscode.TextEditorRevealType.AtTop;
-		} else {
-			// 其他情况（包括上次是置顶），回到居中
-			this.currentRevealType = vscode.TextEditorRevealType.InCenter;
-		}
+    // Register event listeners
+    this.registerEventListeners(context);
 
-		// 保存当前光标位置以供下次使用
-		this.previousCursorPosition = cursorPosition;
+    // Initial update for current editor
+    if (vscode.window.activeTextEditor) {
+      this.updateHighlights(vscode.window.activeTextEditor);
+    }
+  }
 
-		// 执行滚动
-		editor.revealRange(
-			new vscode.Range(cursorPosition, cursorPosition),
-			this.currentRevealType
-		);
-	}
+  // Register all event listeners
+  private static registerEventListeners(
+    context: vscode.ExtensionContext
+  ): void {
+    // Listen for document changes
+    vscode.workspace.onDidChangeTextDocument((event) => {
+      const editor = vscode.window.activeTextEditor;
+      if (editor && event.document === editor.document) {
+        this.updateHighlights(editor);
+      }
+    });
 
-	// 初始化高亮器
-	static initialize(context: vscode.ExtensionContext) {
-		// 创建装饰器
-		this.logDecorationType = vscode.window.createTextEditorDecorationType({
-			before: {
-				contentText: "log:⭐:",
-				margin: "0 0.5em 0 0",
-				color: "gold",
-			},
-			textDecoration: "underline", // 下划线
-			borderRadius: "3px",
-		});
+    // Listen for editor switches
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (editor) {
+        this.updateHighlights(editor);
+      }
+    });
 
-		// 创建状态栏项目
-		this.statusBarItem = vscode.window.createStatusBarItem(
-			vscode.StatusBarAlignment.Right,
-			100
-		);
-		this.statusBarItem.text = "$(search)LogRush🚀: 0/0 日志";
-		this.statusBarItem.tooltip = "点击在日志语句间导航";
-		this.statusBarItem.command = "log-rush.nextLog";
-		context.subscriptions.push(this.statusBarItem);
+    // Listen for configuration changes
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration("log-rush")) {
+        this.updateFromConfig();
+        if (vscode.window.activeTextEditor) {
+          if (this.highlightEnabled) {
+            this.updateHighlights(vscode.window.activeTextEditor);
+          } else {
+            this.clearAllDecorations(vscode.window.activeTextEditor);
+          }
+        }
+      }
+    });
 
-		// 监听文档变化
-		vscode.workspace.onDidChangeTextDocument((event) => {
-			if (
-				vscode.window.activeTextEditor &&
-				event.document === vscode.window.activeTextEditor.document
-			) {
-				this.updateHighlights(vscode.window.activeTextEditor);
-			}
-		});
+    // Register commands
+    context.subscriptions.push(
+      vscode.commands.registerCommand("log-rush.toggleHighlight", () =>
+        this.toggleHighlight()
+      ),
+      vscode.commands.registerCommand("log-rush.nextLog", () => {
+        this.navigateToLog(true);
+      }),
+      vscode.commands.registerCommand("log-rush.previousLog", () => {
+        this.navigateToLog(false);
+      }),
+      vscode.commands.registerCommand("log-rush.recenterTop", () =>
+        this.recenterTop()
+      )
+    );
+  }
 
-		// 监听编辑器切换
-		vscode.window.onDidChangeActiveTextEditor((editor) => {
-			if (editor) {
-				this.updateHighlights(editor);
-			}
-		});
+  // Get configuration settings
+  private static getConfig() {
+    const config = vscode.workspace.getConfiguration("log-rush");
+    return {
+      enableHighlight: config.get<boolean>("EnableHighlight", true),
+    };
+  }
 
-		// 首次启动时更新当前编辑器中的高亮
-		if (vscode.window.activeTextEditor) {
-			this.updateHighlights(vscode.window.activeTextEditor);
-		}
+  // Update settings from configuration
+  private static updateFromConfig(): void {
+    // Update highlight enabled state
+    const config = this.getConfig();
+    this.highlightEnabled = config.enableHighlight;
 
-		// 注册命令
-		context.subscriptions.push(
-			vscode.commands.registerCommand("log-rush.toggleHighlight", () => {
-				this.toggleHighlight();
-			}),
-			vscode.commands.registerCommand("log-rush.nextLog", () => {
-				this.navigateToLog(true);
-			}),
-			vscode.commands.registerCommand("log-rush.previousLog", () => {
-				this.navigateToLog(false);
-			}),
-			vscode.commands.registerCommand("log-rush.recenterTop", () => {
-				this.recenterTop();
-			})
-		);
-	}
+    // Dispose existing decoration types
+    Object.values(this.logDecorationTypes).forEach((decoration) =>
+      decoration.dispose()
+    );
 
-	// 更新高亮显示
-	static updateHighlights(editor: vscode.TextEditor) {
-		const document = editor.document;
-		// 重置位置数组
-		this.logPositions = [];
+    // Create new decoration types
+    this.logDecorationTypes = {};
+    for (const type of this.LOG_TYPES) {
+      this.logDecorationTypes[type] =
+        vscode.window.createTextEditorDecorationType({
+          before: {
+            contentText: this.LOG_ICONS[type],
+            margin: "0 0.5em 0 0",
+            color: this.LOG_COLORS[type],
+          },
+        });
+    }
+  }
 
-		// 查找所有日志语句
-		const text = document.getText();
-		const consoleRegex = /console\.(log|warn|error|info|debug)/g;
-		let match;
+  // Clear all decorations
+  private static clearAllDecorations(editor: vscode.TextEditor): void {
+    Object.values(this.logDecorationTypes).forEach((decorationType) => {
+      editor.setDecorations(decorationType, []);
+    });
+  }
 
-		while ((match = consoleRegex.exec(text)) !== null) {
-			const startPos = document.positionAt(match.index);
-			// 向后查找整行来找到语句结束位置
-			const line = document.lineAt(startPos.line);
-			const lineText = line.text;
-			const endPos = document.positionAt(match.index + match[0].length);
+  // Update highlights in editor
+  static updateHighlights(editor: vscode.TextEditor): void {
+    if (!this.highlightEnabled) {
+      return;
+    }
 
-			// 创建范围
-			const range = new vscode.Range(startPos, line.range.end);
-			this.logPositions.push(range);
-		}
+    const document = editor.document;
+    this.logPositions = [];
 
-		// 更新装饰器
-		editor.setDecorations(this.logDecorationType, this.logPositions);
+    // Prepare decoration arrays
+    const decorations: Record<string, vscode.Range[]> = {};
+    this.LOG_TYPES.forEach((type) => {
+      decorations[type] = [];
+    });
 
-		// 更新状态栏
-		this.updateStatusBar();
-	}
+    // Find all log statements
+    const text = document.getText();
+    const consoleRegex = /console\.(log|warn|error|info|debug)/g;
+    let match;
 
-	// 切换高亮显示开关
-	static toggleHighlight() {
-		const editor = vscode.window.activeTextEditor;
-		if (!editor) return;
+    while ((match = consoleRegex.exec(text)) !== null) {
+      const logType = match[1];
+      const startPos = document.positionAt(match.index);
+      const line = document.lineAt(startPos.line);
+      const range = new vscode.Range(startPos, line.range.end);
 
-		if (this.logPositions.length > 0) {
-			// 如果有高亮，清除它们
-			editor.setDecorations(this.logDecorationType, []);
-			this.logPositions = [];
-			this.statusBarItem.hide();
-		} else {
-			// 重新添加高亮
-			this.updateHighlights(editor);
-			this.statusBarItem.show();
-		}
-	}
+      this.logPositions.push(range);
+      decorations[logType].push(range);
+    }
 
-	// 在日志语句间导航
-	static navigateToLog(forward: boolean) {
-		const editor = vscode.window.activeTextEditor;
-		if (!editor || this.logPositions.length === 0) return;
+    // Apply decorations
+    Object.keys(this.logDecorationTypes).forEach((type) => {
+      editor.setDecorations(this.logDecorationTypes[type], decorations[type]);
+    });
 
-		if (forward) {
-			this.currentIndex = (this.currentIndex + 1) % this.logPositions.length;
-		} else {
-			this.currentIndex =
-				(this.currentIndex - 1 + this.logPositions.length) %
-				this.logPositions.length;
-		}
+    // Update status bar
+    this.updateStatusBar();
+  }
 
-		// 选择并滚动到当前日志
-		editor.selection = new vscode.Selection(
-			this.logPositions[this.currentIndex].start,
-			this.logPositions[this.currentIndex].start
-		);
-		editor.revealRange(
-			this.logPositions[this.currentIndex],
-			vscode.TextEditorRevealType.InCenter
-		);
+  static toggleHighlight() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      return;
+    }
 
-		// 更新状态栏
-		this.updateStatusBar();
-	}
+    this.highlightEnabled = !this.highlightEnabled;
 
-	// 更新状态栏信息
-	static updateStatusBar() {
-		if (this.logPositions.length > 0) {
-			if (this.currentIndex === -1) this.currentIndex = 0;
-			this.statusBarItem.text = `$(search) ${this.currentIndex + 1}/${
-				this.logPositions.length
-			} 日志`;
-			this.statusBarItem.show();
-		} else {
-			this.statusBarItem.hide();
-		}
-	}
+    // 同时更新配置文件，使用户配置与当前状态同步
+    vscode.workspace
+      .getConfiguration("log-rush")
+      .update(
+        "EnableHighlight",
+        this.highlightEnabled,
+        vscode.ConfigurationTarget.Global
+      );
+
+    if (!this.highlightEnabled) {
+      // 如果禁用高亮，清除所有类型的高亮
+      Object.values(this.logDecorationTypes).forEach((decorationType) => {
+        editor.setDecorations(decorationType, []);
+      });
+      this.statusBarItem.text = "$(eye-closed) LogRush🚀: 已禁用";
+    } else {
+      this.updateHighlights(editor);
+    }
+    this.statusBarItem.show();
+  }
+
+  // Navigate between log statements
+  static navigateToLog(forward: boolean): void {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || this.logPositions.length === 0) {
+      return;
+    }
+
+    if (forward) {
+      this.currentIndex = (this.currentIndex + 1) % this.logPositions.length;
+    } else {
+      this.currentIndex =
+        (this.currentIndex - 1 + this.logPositions.length) %
+        this.logPositions.length;
+    }
+
+    const targetRange = this.logPositions[this.currentIndex];
+
+    // Select and scroll to the current log
+    editor.selection = new vscode.Selection(
+      targetRange.start,
+      targetRange.start
+    );
+    editor.revealRange(targetRange, vscode.TextEditorRevealType.InCenter);
+
+    this.updateStatusBar();
+  }
+
+  // Implement recenter-top functionality
+  static recenterTop(): void {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      return;
+    }
+
+    const cursorPosition = editor.selection.active;
+
+    // Determine next reveal type
+    if (
+      !this.currentRevealType ||
+      (this.previousCursorPosition &&
+        !cursorPosition.isEqual(this.previousCursorPosition))
+    ) {
+      // First call or cursor position changed, reset to center
+      this.currentRevealType = vscode.TextEditorRevealType.InCenter;
+    } else if (
+      this.currentRevealType === vscode.TextEditorRevealType.InCenter
+    ) {
+      // Last time was center, now top
+      this.currentRevealType = vscode.TextEditorRevealType.AtTop;
+    } else {
+      // Other cases (including last time was top), back to center
+      this.currentRevealType = vscode.TextEditorRevealType.InCenter;
+    }
+
+    // Save current cursor position for next use
+    this.previousCursorPosition = cursorPosition;
+
+    // Perform scrolling
+    editor.revealRange(
+      new vscode.Range(cursorPosition, cursorPosition),
+      this.currentRevealType
+    );
+  }
+
+  // Update status bar information
+  static updateStatusBar(): void {
+    if (!this.highlightEnabled) {
+      this.statusBarItem.text = "$(eye-closed) LogRush🚀: 已禁用";
+      this.statusBarItem.tooltip =
+        "点击启用日志高亮 (或使用命令: LogRush: 配置高亮设置)";
+      this.statusBarItem.show();
+      return;
+    }
+
+    if (this.logPositions.length > 0) {
+      if (this.currentIndex === -1) {
+        this.currentIndex = 0;
+      }
+
+      this.statusBarItem.text = `$(search) ${this.currentIndex + 1}/${
+        this.logPositions.length
+      } 日志`;
+      this.statusBarItem.tooltip =
+        "点击在日志语句间导航\n使用命令 LogRush: 配置高亮设置 可自定义高亮样式";
+    } else {
+      this.statusBarItem.text = "$(search) LogRush🚀: 无日志";
+      this.statusBarItem.tooltip = "当前文件未找到日志语句";
+    }
+
+    this.statusBarItem.show();
+  }
 }
