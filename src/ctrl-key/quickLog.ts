@@ -19,7 +19,9 @@ function getLogConfig(): LogConfig {
 		showFilePath: logOption.get("ShowFilePath") || false,
 		filePathType: logOption.get("FilePathType") || LogFormatType.SHORT,
 		lineTagPosition: logOption.get("LineTagAtBeginOrEnd") || "begin",
-		customFormat: logOption.get("CustomFormat") || "${fileName} ${varName}::: ",
+		customFormat:
+			logOption.get("CustomFormat") ||
+			"${filePath}: ${functionName}->${varName}${varPilotSymbol}",
 	};
 }
 function getLogEnd(config: LogConfig): string {
@@ -59,7 +61,7 @@ function generateLogStatement(
 
 	// 获取行号信息
 	const lineNumber = config.showLineNumber
-		? `line:${insertSection.end.line + 1}`
+		? `l:${insertSection.end.line + 1}`
 		: "";
 
 	// 获取函数名和对象名信息
@@ -73,6 +75,8 @@ function generateLogStatement(
 		contextPath = `${objectName}->${functionName}`;
 	} else if (functionName) {
 		contextPath = functionName;
+	} else {
+		contextPath = "";
 	}
 
 	// 构建文件路径部分
@@ -104,11 +108,23 @@ function generateLogStatement(
 			.replace("${objectName}", objectName)
 			.replace("${contextPath}", contextPath)
 			.replace("${varName}", word)
-			.replace("${lineNumber}", lineNumber);
-	} else {
+			.replace("${lineNumber}", lineNumber)
+			.replace("${varPilotSymbol}", config.varPilotSymbol);
+	} else if (config.filePathType === LogFormatType.SHORT) {
 		// 使用标准格式
 		const contextDisplay = contextPath ? `${contextPath}->` : "";
 
+		if (config.lineTagPosition === "begin" && lineNumber) {
+			logPrefix = `${lineNumber} ${filePathStr} ${contextDisplay}${word}${config.varPilotSymbol}`;
+		} else {
+			logPrefix = `${filePathStr} ${contextDisplay}${word}${config.varPilotSymbol}`;
+			if (lineNumber) {
+				logPrefix += ` ${lineNumber}`;
+			}
+		}
+	} else if (config.filePathType === LogFormatType.FULL) {
+		// 使用标准格式
+		const contextDisplay = contextPath ? `${contextPath}->` : "";
 		if (config.lineTagPosition === "begin" && lineNumber) {
 			logPrefix = `${lineNumber} ${filePathStr} ${contextDisplay}${word}${config.varPilotSymbol}`;
 		} else {

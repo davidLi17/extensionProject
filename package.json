@@ -77,23 +77,13 @@
 				},
 				"log-rush.CustomFormat": {
 					"type": "string",
-					"default": "${fileName} ${varName}::: ",
-					"description": "Custom log format, available variables: ${fileName}, ${filePath}, ${fullPath}, ${varName}, ${lineNumber}|自定义日志格式，可用变量：${fileName}, ${filePath}, ${fullPath}, ${varName}, ${lineNumber}"
+					"default": "${filePath}: ${functionName}->${varName}${varPilotSymbol}",
+					"description": "自定义日志格式。可用变量：${fileName}(文件名), ${filePath}(Brand/index.tsx), ${fullPath}(完整path), ${functionName}(函数名), ${objectName}(对象名), ${contextPath}(eg. Object->funName), ${varName}(变量名), ${lineNumber}(line:10),${varPilotSymbol}(eg. :: )"
 				},
 				"log-rush.EnableHighlight": {
 					"type": "boolean",
-					"default": true,
+					"default": false,
 					"description": "是否启用日志高亮显示"
-				},
-				"log-rush.HighlightColor": {
-					"type": "string",
-					"default": "rgba(255, 215, 0, 0.2)",
-					"description": "日志高亮的背景颜色"
-				},
-				"log-rush.HighlightBorderColor": {
-					"type": "string",
-					"default": "rgba(255, 215, 0, 0.6)",
-					"description": "日志高亮的边框颜色"
 				}
 			}
 		},
