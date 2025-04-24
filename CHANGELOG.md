@@ -4,6 +4,21 @@ All notable changes to the "log-rush" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [1.2.0] - 2025-04-25
+
+### Added
+- **Babel AST 分析**：新增代码分析功能，支持解析上下文函数名和对象名，优化日志插入逻辑。
+- **日志插入点优化**：支持在语句末尾或函数体内智能插入日志。
+
+### Changed
+- **日志导航快捷键优化**：MacOS 用户可通过 `Cmd+[` 和 `Cmd+]` 快捷键在日志间跳转。
+- **日志格式改进**：支持短路径、完整路径和自定义路径格式。
+
+### Fixed
+- 修复日志插入时可能导致的语法错误问题。
+- 修复在某些情况下日志高亮未正确更新的问题。
+- 修复多文件工作区中路径显示不一致的问题。
+
 ## [1.1.1] - 2025-04-24
 
 ### Added

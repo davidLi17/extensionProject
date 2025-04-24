@@ -2,7 +2,7 @@
   "name": "log-rush",
   "displayName": "LogRush",
   "description": "Quickly add and remove console.log statements with powerful shortcuts.Code faster, debug better, clean up easier! ",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "publisher": "davidLi317",
   "repository": "https://github.com/davidLi17/extensionProject",
   "issues": "https://github.com/davidLi17/extensionProject/issues",
@@ -245,13 +245,13 @@
     "ts-loader": "^9.5.2",
     "typescript": "^5.7.3",
     "webpack": "^5.97.1",
-    "webpack-cli": "^6.0.1"
+    "webpack-cli": "^6.0.1",
+    "@types/babel__traverse": "^7.20.7"
   },
   "dependencies": {
     "@babel/parser": "^7.23.0",
     "@babel/traverse": "^7.23.0",
-    "@babel/types": "^7.23.0",
-    "@types/babel__traverse": "^7.20.7"
+    "@babel/types": "^7.23.0"
   },
   "license": "MIT"
 }
