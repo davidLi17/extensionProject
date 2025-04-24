@@ -60,8 +60,6 @@ export class LogHighlighter {
 				margin: "0 0.5em 0 0",
 				color: "gold",
 			},
-			textDecoration: "underline", // 下划线
-			borderRadius: "3px",
 		});
 
 		// 创建状态栏项目

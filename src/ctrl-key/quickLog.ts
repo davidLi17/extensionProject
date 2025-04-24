@@ -95,7 +95,7 @@ function generateLogStatement(
 	let logPrefix = "";
 
 	if (config.customFormat && config.filePathType === LogFormatType.CUSTOM) {
-		// 使用自定义格式
+		// 使用自定义格式:
 		logPrefix = config.customFormat
 			.replace("${fileName}", fileName)
 			.replace("${filePath}", relativePath)
@@ -139,9 +139,9 @@ function insertConsoleLog(logType: LogType) {
 
 	if (!word) {
 		const value = new vscode.SnippetString(
-			`${logMethod}(${config.varPilotSymbol}${config.quotationMark}${
-				config.varPilotSymbol
-			}${getLogEnd(config)})`
+			`${logMethod}(${config.quotationMark}${config.varPilotSymbol} $1${
+				config.quotationMark
+			}, $1${getLogEnd(config)}`
 		);
 		editor.insertSnippet(value, varSelection.start);
 		return;
