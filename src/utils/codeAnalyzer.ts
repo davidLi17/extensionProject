@@ -9,19 +9,23 @@ interface InsertionPosition {
 	character: number; // 字符位置
 	isEndOfStatement: boolean; // 是否是语句的末尾
 }
+
+// 返回上下文信息的接口
 export interface ContextInfo {
-	functionName: string | null; // 函数名
-	ObjectName: string | null; // 对象名
+	functionName: string | null;
+	objectName: string | null;
 }
+
+// 获取包含选中位置的函数名和对象名
 export function getEnclosingContextName(
 	document: vscode.TextDocument,
 	position: vscode.Position
 ): ContextInfo {
-	const code = document.getText(); // 获取文档的文本内容,example: "const a = 1;"
-	const offset = document.offsetAt(position); // 获取光标在文档中的偏移量,example: 5
+	const code = document.getText();
+	const offset = document.offsetAt(position);
 
 	let functionName: string | null = null;
-	let ObjectName: string | null = null;
+	let objectName: string | null = null;
 
 	try {
 		const sourceType: "module" | "script" | "unambiguous" =
@@ -37,32 +41,94 @@ export function getEnclosingContextName(
 		traverse(ast, {
 			enter(path) {
 				const node = path.node;
+
 				if (
 					!node.loc ||
 					typeof node.start !== "number" ||
 					typeof node.end !== "number"
 				)
 					return;
+
 				if (offset >= node.start && offset <= node.end) {
+					// 检查函数声明
 					if (babelTypes.isFunctionDeclaration(node) && node.id) {
-						//检查函数声明
 						functionName = node.id.name;
-					} else if (
+					}
+					// 检查函数表达式
+					else if (
 						babelTypes.isFunctionExpression(node) &&
 						path.parent &&
 						babelTypes.isVariableDeclarator(path.parent) &&
 						path.parent.id &&
 						babelTypes.isIdentifier(path.parent.id)
 					) {
-						functionName = path.parent.id.name; //检查函数表达式
-					}else if {
-						
+						functionName = path.parent.id.name;
+					}
+					// 检查箭头函数
+					else if (
+						babelTypes.isArrowFunctionExpression(node) &&
+						path.parent &&
+						babelTypes.isVariableDeclarator(path.parent) &&
+						path.parent.id &&
+						babelTypes.isIdentifier(path.parent.id)
+					) {
+						functionName = path.parent.id.name;
+					}
+					// 检查对象方法
+					else if (
+						babelTypes.isObjectMethod(node) &&
+						node.key &&
+						babelTypes.isIdentifier(node.key)
+					) {
+						functionName = node.key.name;
+
+						// 寻找对象名称
+						let parent = path.parentPath;
+						while (parent && !babelTypes.isObjectExpression(parent.node)) {
+							parent = parent.parentPath;
+						}
+
+						if (
+							parent &&
+							parent.parent &&
+							babelTypes.isVariableDeclarator(parent.parent.node) &&
+							parent.parent.node.id &&
+							babelTypes.isIdentifier(parent.parent.node.id)
+						) {
+							objectName = parent.parent.node.id.name;
+						}
+					}
+					// 检查类方法
+					else if (
+						babelTypes.isClassMethod(node) &&
+						node.key &&
+						babelTypes.isIdentifier(node.key)
+					) {
+						functionName = node.key.name;
+
+						// 寻找类名
+						const classPath = path.findParent((p) =>
+							babelTypes.isClassDeclaration(p.node)
+						);
+						if (
+							classPath &&
+							babelTypes.isClassDeclaration(classPath.node) &&
+							classPath.node.id
+						) {
+							objectName = classPath.node.id.name;
+						}
 					}
 				}
 			},
 		});
-	} catch (error) {}
+
+		return { functionName, objectName };
+	} catch (e) {
+		console.error("解析错误:", e);
+		return { functionName: null, objectName: null };
+	}
 }
+
 // 导出查找有效插入点的函数
 export function findValidInsertionPoint(
 	document: vscode.TextDocument, // VSCode文本文档对象

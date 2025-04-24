@@ -1,6 +1,9 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import { findValidInsertionPoint } from "@/utils/codeAnalyzer";
+import {
+	findValidInsertionPoint,
+	getEnclosingContextName,
+} from "@/utils/codeAnalyzer";
 
 import { LogConfig, LogFormatType, LogType } from "@/types/index";
 import { LogHighlighter } from "@/utils/logHighlighter";
@@ -49,7 +52,6 @@ function generateLogStatement(
 ): string {
 	// 获取文件信息
 	const fileName = path.basename(document.fileName);
-	console.log("ctrl-key/quickLog.ts generateLogStatemen->fileName::", fileName);
 
 	const fileDir = normalizePath(path.dirname(document.fileName));
 	const dirName = path.basename(fileDir);
@@ -59,6 +61,19 @@ function generateLogStatement(
 	const lineNumber = config.showLineNumber
 		? `line:${insertSection.end.line + 1}`
 		: "";
+
+	// 获取函数名和对象名信息
+	const contextInfo = getEnclosingContextName(document, insertSection.start);
+	const functionName = contextInfo.functionName || "";
+	const objectName = contextInfo.objectName || "";
+
+	// 构建上下文路径
+	let contextPath = "";
+	if (objectName && functionName) {
+		contextPath = `${objectName}->${functionName}`;
+	} else if (functionName) {
+		contextPath = functionName;
+	}
 
 	// 构建文件路径部分
 	let filePathStr = "";
@@ -71,7 +86,7 @@ function generateLogStatement(
 				filePathStr = relativePath;
 				break;
 			case LogFormatType.CUSTOM:
-				filePathStr = normalizePath(document.fileName); // 完整路径，可以自定义处理
+				filePathStr = normalizePath(document.fileName);
 				break;
 		}
 	}
@@ -85,14 +100,19 @@ function generateLogStatement(
 			.replace("${fileName}", fileName)
 			.replace("${filePath}", relativePath)
 			.replace("${fullPath}", normalizePath(document.fileName))
+			.replace("${functionName}", functionName)
+			.replace("${objectName}", objectName)
+			.replace("${contextPath}", contextPath)
 			.replace("${varName}", word)
 			.replace("${lineNumber}", lineNumber);
 	} else {
 		// 使用标准格式
+		const contextDisplay = contextPath ? `${contextPath}->` : "";
+
 		if (config.lineTagPosition === "begin" && lineNumber) {
-			logPrefix = `${lineNumber} ${filePathStr} ${word}${config.varPilotSymbol}`;
+			logPrefix = `${lineNumber} ${filePathStr} ${contextDisplay}${word}${config.varPilotSymbol}`;
 		} else {
-			logPrefix = `${filePathStr} ${word}${config.varPilotSymbol}`;
+			logPrefix = `${filePathStr} ${contextDisplay}${word}${config.varPilotSymbol}`;
 			if (lineNumber) {
 				logPrefix += ` ${lineNumber}`;
 			}
