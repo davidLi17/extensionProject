@@ -2,7 +2,7 @@
   "name": "log-rush",
   "displayName": "LogRush",
   "description": "Quickly add and remove console.log statements with powerful shortcuts.Code faster, debug better, clean up easier! ",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "publisher": "davidLi317",
   "repository": "https://github.com/davidLi17/extensionProject",
   "issues": "https://github.com/davidLi17/extensionProject/issues",
@@ -77,12 +77,12 @@
         },
         "log-rush.CustomFormat": {
           "type": "string",
-          "default": "${fileName} ${varName}::: ",
-          "description": "Custom log format, available variables: ${fileName}, ${filePath}, ${fullPath}, ${varName}, ${lineNumber}|自定义日志格式，可用变量：${fileName}, ${filePath}, ${fullPath}, ${varName}, ${lineNumber}"
+          "default": "${filePath}: ${functionName}->${varName}${varPilotSymbol}",
+          "description": "自定义日志格式。可用变量：${fileName}(文件名), ${filePath}(Brand/index.tsx), ${fullPath}(完整path), ${functionName}(函数名), ${objectName}(对象名), ${contextPath}(eg. Object->funName), ${varName}(变量名), ${lineNumber}(line:10),${varPilotSymbol}(eg. :: )"
         },
         "log-rush.EnableHighlight": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "是否启用日志高亮显示"
         }
       }
@@ -99,7 +99,7 @@
     "views": {
       "log-rush-explorer": [
         {
-          "icon": "$(search)",
+          "icon": "$(file-code)",
           "id": "logRushExplorer",
           "name": "日志浏览器"
         }
@@ -141,11 +141,6 @@
         "title": "Uncomment all console statements"
       },
       {
-        "command": "log-rush.openLogLocation",
-        "title": "打开日志位置",
-        "category": "LogRush"
-      },
-      {
         "command": "log-rush.toggleHighlight",
         "title": "LogRush: 开关日志高亮"
       },
@@ -156,6 +151,10 @@
       {
         "command": "log-rush.previousLog",
         "title": "LogRush: 跳转到上一个日志"
+      },
+      {
+        "command": "log-rush.recenterTop",
+        "title": "LogRush: 让光标在 editor`s viewport的top和center切换"
       },
       {
         "command": "log-rush.refreshLogExplorer",
@@ -198,24 +197,6 @@
         "key": "ctrl+f3",
         "mac": "cmd+f3",
         "when": "editorTextFocus"
-      },
-      {
-        "command": "log-rush.nextLog",
-        "key": "alt+n",
-        "mac": "cmd+]",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "log-rush.previousLog",
-        "key": "alt+p",
-        "mac": "cmd+[",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "log-rush.toggleHighlight",
-        "key": "ctrl+alt+h",
-        "mac": "cmd+shift+l",
-        "when": "editorTextFocus"
       }
     ],
     "menus": {
@@ -248,26 +229,29 @@
     "package": "webpack --mode production --devtool hidden-source-map",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
-    "test": "bun ./out/test/runTest.js",
     "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
     "lint": "eslint src"
   },
   "devDependencies": {
+    "@types/vscode": "^1.2.0",
     "@types/glob": "^8.0.0",
     "@types/mocha": "^10.0.0",
     "@types/node": "16.x",
-    "@types/sinon": "^17.0.4",
-    "@types/vscode": "^1.2.0",
     "@typescript-eslint/eslint-plugin": "^8.22.0",
     "@typescript-eslint/parser": "^8.22.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "eslint": "^9.19.0",
-    "sinon": "^20.0.0",
     "ts-loader": "^9.5.2",
     "typescript": "^5.7.3",
     "webpack": "^5.97.1",
     "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.23.0",
+    "@babel/traverse": "^7.23.0",
+    "@babel/types": "^7.23.0",
+    "@types/babel__traverse": "^7.20.7"
   },
   "license": "MIT"
 }

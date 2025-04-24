@@ -1,5 +1,9 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import {
+	findValidInsertionPoint,
+	getEnclosingContextName,
+} from "@/utils/codeAnalyzer";
 
 import { LogConfig, LogFormatType, LogType } from "@/types/index";
 import { LogHighlighter } from "@/utils/logHighlighter";
@@ -15,7 +19,9 @@ function getLogConfig(): LogConfig {
 		showFilePath: logOption.get("ShowFilePath") || false,
 		filePathType: logOption.get("FilePathType") || LogFormatType.SHORT,
 		lineTagPosition: logOption.get("LineTagAtBeginOrEnd") || "begin",
-		customFormat: logOption.get("CustomFormat") || "${fileName} ${varName}::: ",
+		customFormat:
+			logOption.get("CustomFormat") ||
+			"${filePath}: ${functionName}->${varName}${varPilotSymbol}",
 	};
 }
 function getLogEnd(config: LogConfig): string {
@@ -48,14 +54,30 @@ function generateLogStatement(
 ): string {
 	// 获取文件信息
 	const fileName = path.basename(document.fileName);
+
 	const fileDir = normalizePath(path.dirname(document.fileName));
 	const dirName = path.basename(fileDir);
 	const relativePath = normalizePath(path.join(dirName, fileName));
 
 	// 获取行号信息
 	const lineNumber = config.showLineNumber
-		? `line:${insertSection.end.line + 1}`
+		? `l:${insertSection.end.line + 1}`
 		: "";
+
+	// 获取函数名和对象名信息
+	const contextInfo = getEnclosingContextName(document, insertSection.start);
+	const functionName = contextInfo.functionName || "";
+	const objectName = contextInfo.objectName || "";
+
+	// 构建上下文路径
+	let contextPath = "";
+	if (objectName && functionName) {
+		contextPath = `${objectName}->${functionName}`;
+	} else if (functionName) {
+		contextPath = functionName;
+	} else {
+		contextPath = "";
+	}
 
 	// 构建文件路径部分
 	let filePathStr = "";
@@ -68,7 +90,7 @@ function generateLogStatement(
 				filePathStr = relativePath;
 				break;
 			case LogFormatType.CUSTOM:
-				filePathStr = normalizePath(document.fileName); // 完整路径，可以自定义处理
+				filePathStr = normalizePath(document.fileName);
 				break;
 		}
 	}
@@ -77,19 +99,36 @@ function generateLogStatement(
 	let logPrefix = "";
 
 	if (config.customFormat && config.filePathType === LogFormatType.CUSTOM) {
-		// 使用自定义格式
+		// 使用自定义格式:
 		logPrefix = config.customFormat
 			.replace("${fileName}", fileName)
 			.replace("${filePath}", relativePath)
 			.replace("${fullPath}", normalizePath(document.fileName))
+			.replace("${functionName}", functionName)
+			.replace("${objectName}", objectName)
+			.replace("${contextPath}", contextPath)
 			.replace("${varName}", word)
-			.replace("${lineNumber}", lineNumber);
-	} else {
+			.replace("${lineNumber}", lineNumber)
+			.replace("${varPilotSymbol}", config.varPilotSymbol);
+	} else if (config.filePathType === LogFormatType.SHORT) {
 		// 使用标准格式
+		const contextDisplay = contextPath ? `${contextPath}->` : "";
+
 		if (config.lineTagPosition === "begin" && lineNumber) {
-			logPrefix = `${lineNumber} ${filePathStr} ${word}${config.varPilotSymbol}`;
+			logPrefix = `${lineNumber} ${filePathStr} ${contextDisplay}${word}${config.varPilotSymbol}`;
 		} else {
-			logPrefix = `${filePathStr} ${word}${config.varPilotSymbol}`;
+			logPrefix = `${filePathStr} ${contextDisplay}${word}${config.varPilotSymbol}`;
+			if (lineNumber) {
+				logPrefix += ` ${lineNumber}`;
+			}
+		}
+	} else if (config.filePathType === LogFormatType.FULL) {
+		// 使用标准格式
+		const contextDisplay = contextPath ? `${contextPath}->` : "";
+		if (config.lineTagPosition === "begin" && lineNumber) {
+			logPrefix = `${lineNumber} ${filePathStr} ${contextDisplay}${word}${config.varPilotSymbol}`;
+		} else {
+			logPrefix = `${filePathStr} ${contextDisplay}${word}${config.varPilotSymbol}`;
 			if (lineNumber) {
 				logPrefix += ` ${lineNumber}`;
 			}
@@ -101,46 +140,121 @@ function generateLogStatement(
 		config.quotationMark
 	}, ${word}${getLogEnd(config)}`;
 }
+
 function insertConsoleLog(logType: LogType) {
 	const editor = vscode.window.activeTextEditor;
 	if (!editor) {
 		return;
 	}
+
 	const document = editor.document;
 	const varSelection = editor.selection;
-	const word = document.getText(varSelection); //word is the selected text
+	const word = document.getText(varSelection);
 	const config = getLogConfig();
 	const logMethod = `console.${logType}`;
+
 	if (!word) {
 		const value = new vscode.SnippetString(
-			`${logMethod}(${config.varPilotSymbol}${config.quotationMark}${
-				config.varPilotSymbol
-			}${getLogEnd(config)})`
+			`${logMethod}(${config.quotationMark}${config.varPilotSymbol} $1${
+				config.quotationMark
+			}, $1${getLogEnd(config)}`
 		);
 		editor.insertSnippet(value, varSelection.start);
 		return;
 	}
-	vscode.commands.executeCommand("editor.action.insertLineAfter").then(() => {
-		const insertSection = editor.selection;
-		editor.edit((editBuilder) => {
-			const logStatement = generateLogStatement(
-				document,
-				insertSection,
-				word,
-				config,
-				logMethod
-			);
-			editBuilder.insert(insertSection.start, logStatement);
-		}).then(()=>{
-			if(editor){
-				setTimeout(()=>{
-					LogHighlighter.updateHighlights(editor);
-				}, 100);
-			}
-		})
-	});
 
-	
+	// Find a valid insertion point using our code analyzer
+	const insertPosition = findValidInsertionPoint(document, varSelection, word);
+
+	if (insertPosition) {
+		const position = new vscode.Position(
+			insertPosition.line,
+			insertPosition.character
+		);
+
+		// Create a selection at the insertion point
+		const insertSelection = new vscode.Selection(position, position);
+
+		// If we're at the end of a statement, add a new line first
+		if (insertPosition.isEndOfStatement) {
+			editor
+				.edit((editBuilder) => {
+					editBuilder.insert(position, "\n");
+				})
+				.then(() => {
+					// After adding the new line, insert the log statement
+					const newPosition = new vscode.Position(position.line + 1, 0);
+					const newSelection = new vscode.Selection(newPosition, newPosition);
+
+					editor
+						.edit((editBuilder) => {
+							const logStatement = generateLogStatement(
+								document,
+								varSelection,
+								word,
+								config,
+								logMethod
+							);
+							editBuilder.insert(newPosition, logStatement);
+						})
+						.then(() => {
+							if (editor) {
+								setTimeout(() => {
+									LogHighlighter.updateHighlights(editor);
+								}, 100);
+							}
+						});
+				});
+		} else {
+			// If not at the end of a statement, just insert after the current line
+			vscode.commands
+				.executeCommand("editor.action.insertLineAfter")
+				.then(() => {
+					const insertSection = editor.selection;
+					editor
+						.edit((editBuilder) => {
+							const logStatement = generateLogStatement(
+								document,
+								varSelection,
+								word,
+								config,
+								logMethod
+							);
+							editBuilder.insert(insertSection.start, logStatement);
+						})
+						.then(() => {
+							if (editor) {
+								setTimeout(() => {
+									LogHighlighter.updateHighlights(editor);
+								}, 100);
+							}
+						});
+				});
+		}
+	} else {
+		// Fallback to the original behavior if no valid insertion point was found
+		vscode.commands.executeCommand("editor.action.insertLineAfter").then(() => {
+			const insertSelection = editor.selection;
+			editor
+				.edit((editBuilder) => {
+					const logStatement = generateLogStatement(
+						document,
+						insertSelection,
+						word,
+						config,
+						logMethod
+					);
+					editBuilder.insert(insertSelection.start, logStatement);
+				})
+				.then(() => {
+					if (editor) {
+						setTimeout(() => {
+							LogHighlighter.updateHighlights(editor);
+						}, 100);
+					}
+				});
+		});
+	}
 }
 const quickLog = vscode.commands.registerTextEditorCommand(
 	"log-rush.qlog",
