@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import { findValidInsertionPoint } from "@/utils/codeAnalyzer";
 
 import { LogConfig, LogFormatType, LogType } from "@/types/index";
 import { LogHighlighter } from "@/utils/logHighlighter";
@@ -48,6 +49,8 @@ function generateLogStatement(
 ): string {
 	// 获取文件信息
 	const fileName = path.basename(document.fileName);
+	console.log("ctrl-key/quickLog.ts generateLogStatemen->fileName::", fileName);
+
 	const fileDir = normalizePath(path.dirname(document.fileName));
 	const dirName = path.basename(fileDir);
 	const relativePath = normalizePath(path.join(dirName, fileName));
@@ -101,16 +104,19 @@ function generateLogStatement(
 		config.quotationMark
 	}, ${word}${getLogEnd(config)}`;
 }
+
 function insertConsoleLog(logType: LogType) {
 	const editor = vscode.window.activeTextEditor;
 	if (!editor) {
 		return;
 	}
+
 	const document = editor.document;
 	const varSelection = editor.selection;
-	const word = document.getText(varSelection); //word is the selected text
+	const word = document.getText(varSelection);
 	const config = getLogConfig();
 	const logMethod = `console.${logType}`;
+
 	if (!word) {
 		const value = new vscode.SnippetString(
 			`${logMethod}(${config.varPilotSymbol}${config.quotationMark}${
@@ -120,27 +126,99 @@ function insertConsoleLog(logType: LogType) {
 		editor.insertSnippet(value, varSelection.start);
 		return;
 	}
-	vscode.commands.executeCommand("editor.action.insertLineAfter").then(() => {
-		const insertSection = editor.selection;
-		editor.edit((editBuilder) => {
-			const logStatement = generateLogStatement(
-				document,
-				insertSection,
-				word,
-				config,
-				logMethod
-			);
-			editBuilder.insert(insertSection.start, logStatement);
-		}).then(()=>{
-			if(editor){
-				setTimeout(()=>{
-					LogHighlighter.updateHighlights(editor);
-				}, 100);
-			}
-		})
-	});
 
-	
+	// Find a valid insertion point using our code analyzer
+	const insertPosition = findValidInsertionPoint(document, varSelection, word);
+
+	if (insertPosition) {
+		const position = new vscode.Position(
+			insertPosition.line,
+			insertPosition.character
+		);
+
+		// Create a selection at the insertion point
+		const insertSelection = new vscode.Selection(position, position);
+
+		// If we're at the end of a statement, add a new line first
+		if (insertPosition.isEndOfStatement) {
+			editor
+				.edit((editBuilder) => {
+					editBuilder.insert(position, "\n");
+				})
+				.then(() => {
+					// After adding the new line, insert the log statement
+					const newPosition = new vscode.Position(position.line + 1, 0);
+					const newSelection = new vscode.Selection(newPosition, newPosition);
+
+					editor
+						.edit((editBuilder) => {
+							const logStatement = generateLogStatement(
+								document,
+								varSelection,
+								word,
+								config,
+								logMethod
+							);
+							editBuilder.insert(newPosition, logStatement);
+						})
+						.then(() => {
+							if (editor) {
+								setTimeout(() => {
+									LogHighlighter.updateHighlights(editor);
+								}, 100);
+							}
+						});
+				});
+		} else {
+			// If not at the end of a statement, just insert after the current line
+			vscode.commands
+				.executeCommand("editor.action.insertLineAfter")
+				.then(() => {
+					const insertSection = editor.selection;
+					editor
+						.edit((editBuilder) => {
+							const logStatement = generateLogStatement(
+								document,
+								varSelection,
+								word,
+								config,
+								logMethod
+							);
+							editBuilder.insert(insertSection.start, logStatement);
+						})
+						.then(() => {
+							if (editor) {
+								setTimeout(() => {
+									LogHighlighter.updateHighlights(editor);
+								}, 100);
+							}
+						});
+				});
+		}
+	} else {
+		// Fallback to the original behavior if no valid insertion point was found
+		vscode.commands.executeCommand("editor.action.insertLineAfter").then(() => {
+			const insertSelection = editor.selection;
+			editor
+				.edit((editBuilder) => {
+					const logStatement = generateLogStatement(
+						document,
+						insertSelection,
+						word,
+						config,
+						logMethod
+					);
+					editBuilder.insert(insertSelection.start, logStatement);
+				})
+				.then(() => {
+					if (editor) {
+						setTimeout(() => {
+							LogHighlighter.updateHighlights(editor);
+						}, 100);
+					}
+				});
+		});
+	}
 }
 const quickLog = vscode.commands.registerTextEditorCommand(
 	"log-rush.qlog",
