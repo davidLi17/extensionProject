@@ -153,9 +153,85 @@ function insertConsoleLog(logType: LogType) {
 	const config = getLogConfig();
 	const logMethod = `console.${logType}`;
 
+	// 没有选择变量的情况，使用带路径信息的snippets展开
 	if (!word) {
+		// 获取文件信息
+		const fileName = path.basename(document.fileName);
+		const fileDir = normalizePath(path.dirname(document.fileName));
+		const dirName = path.basename(fileDir);
+		const relativePath = normalizePath(path.join(dirName, fileName));
+
+		// 获取行号信息
+		const lineNumber = config.showLineNumber
+			? `l:${varSelection.end.line + 1}`
+			: "";
+
+		// 获取函数名和对象名信息
+		const contextInfo = getEnclosingContextName(document, varSelection.start);
+		const functionName = contextInfo.functionName || "";
+		const objectName = contextInfo.objectName || "";
+
+		// 构建上下文路径
+		let contextPath = "";
+		if (objectName && functionName) {
+			contextPath = `${objectName}->${functionName}`;
+		} else if (functionName) {
+			contextPath = functionName;
+		} else {
+			contextPath = "";
+		}
+
+		// 构建文件路径部分
+		let filePathStr = "";
+		if (config.showFilePath) {
+			switch (config.filePathType) {
+				case LogFormatType.SHORT:
+					filePathStr = fileName;
+					break;
+				case LogFormatType.FULL:
+					filePathStr = relativePath;
+					break;
+				case LogFormatType.CUSTOM:
+					filePathStr = normalizePath(document.fileName);
+					break;
+			}
+		}
+
+		// 构建日志前缀
+		let logPrefix = "";
+		const placeholderVar = "$1"; // 使用snippet的占位符
+
+		if (config.customFormat && config.filePathType === LogFormatType.CUSTOM) {
+			// 使用自定义格式
+			logPrefix = config.customFormat
+				.replace("${fileName}", fileName)
+				.replace("${filePath}", relativePath)
+				.replace("${fullPath}", normalizePath(document.fileName))
+				.replace("${functionName}", functionName)
+				.replace("${objectName}", objectName)
+				.replace("${contextPath}", contextPath)
+				.replace("${varName}", placeholderVar)
+				.replace("${lineNumber}", lineNumber)
+				.replace("${varPilotSymbol}", config.varPilotSymbol);
+		} else if (
+			config.filePathType === LogFormatType.SHORT ||
+			config.filePathType === LogFormatType.FULL
+		) {
+			// 使用标准格式
+			const contextDisplay = contextPath ? `${contextPath}->` : "";
+
+			if (config.lineTagPosition === "begin" && lineNumber) {
+				logPrefix = `${lineNumber} ${filePathStr} ${contextDisplay}${placeholderVar}${config.varPilotSymbol}`;
+			} else {
+				logPrefix = `${filePathStr} ${contextDisplay}${placeholderVar}${config.varPilotSymbol}`;
+				if (lineNumber) {
+					logPrefix += ` ${lineNumber}`;
+				}
+			}
+		}
+
 		const value = new vscode.SnippetString(
-			`${logMethod}(${config.quotationMark}${config.varPilotSymbol} $1${
+			`${logMethod}(${config.quotationMark}${logPrefix}${
 				config.quotationMark
 			}, $1${getLogEnd(config)}`
 		);
@@ -163,7 +239,7 @@ function insertConsoleLog(logType: LogType) {
 		return;
 	}
 
-	// Find a valid insertion point using our code analyzer
+	// 选择了变量的情况
 	const insertPosition = findValidInsertionPoint(document, varSelection, word);
 
 	if (insertPosition) {
@@ -171,33 +247,36 @@ function insertConsoleLog(logType: LogType) {
 			insertPosition.line,
 			insertPosition.character
 		);
-
-		// Create a selection at the insertion point
 		const insertSelection = new vscode.Selection(position, position);
 
-		// If we're at the end of a statement, add a new line first
 		if (insertPosition.isEndOfStatement) {
 			editor
 				.edit((editBuilder) => {
 					editBuilder.insert(position, "\n");
 				})
 				.then(() => {
-					// After adding the new line, insert the log statement
 					const newPosition = new vscode.Position(position.line + 1, 0);
 					const newSelection = new vscode.Selection(newPosition, newPosition);
+					const logStatement = generateLogStatement(
+						document,
+						varSelection,
+						word,
+						config,
+						logMethod
+					);
 
 					editor
 						.edit((editBuilder) => {
-							const logStatement = generateLogStatement(
-								document,
-								varSelection,
-								word,
-								config,
-								logMethod
-							);
 							editBuilder.insert(newPosition, logStatement);
 						})
 						.then(() => {
+							// 计算插入后的语句结束位置并移动光标
+							const endPosition = new vscode.Position(
+								newPosition.line,
+								newPosition.character + logStatement.length
+							);
+							editor.selection = new vscode.Selection(endPosition, endPosition);
+
 							if (editor) {
 								setTimeout(() => {
 									LogHighlighter.updateHighlights(editor);
@@ -206,23 +285,30 @@ function insertConsoleLog(logType: LogType) {
 						});
 				});
 		} else {
-			// If not at the end of a statement, just insert after the current line
 			vscode.commands
 				.executeCommand("editor.action.insertLineAfter")
 				.then(() => {
 					const insertSection = editor.selection;
+					const logStatement = generateLogStatement(
+						document,
+						varSelection,
+						word,
+						config,
+						logMethod
+					);
+
 					editor
 						.edit((editBuilder) => {
-							const logStatement = generateLogStatement(
-								document,
-								varSelection,
-								word,
-								config,
-								logMethod
-							);
 							editBuilder.insert(insertSection.start, logStatement);
 						})
 						.then(() => {
+							// 计算插入位置的结束位置并移动光标
+							const endPosition = new vscode.Position(
+								insertSection.start.line,
+								insertSection.start.character + logStatement.length
+							);
+							editor.selection = new vscode.Selection(endPosition, endPosition);
+
 							if (editor) {
 								setTimeout(() => {
 									LogHighlighter.updateHighlights(editor);
@@ -232,21 +318,28 @@ function insertConsoleLog(logType: LogType) {
 				});
 		}
 	} else {
-		// Fallback to the original behavior if no valid insertion point was found
 		vscode.commands.executeCommand("editor.action.insertLineAfter").then(() => {
 			const insertSelection = editor.selection;
+			const logStatement = generateLogStatement(
+				document,
+				insertSelection,
+				word,
+				config,
+				logMethod
+			);
+
 			editor
 				.edit((editBuilder) => {
-					const logStatement = generateLogStatement(
-						document,
-						insertSelection,
-						word,
-						config,
-						logMethod
-					);
 					editBuilder.insert(insertSelection.start, logStatement);
 				})
 				.then(() => {
+					// 计算插入位置的结束位置并移动光标
+					const endPosition = new vscode.Position(
+						insertSelection.start.line,
+						insertSelection.start.character + logStatement.length
+					);
+					editor.selection = new vscode.Selection(endPosition, endPosition);
+
 					if (editor) {
 						setTimeout(() => {
 							LogHighlighter.updateHighlights(editor);
