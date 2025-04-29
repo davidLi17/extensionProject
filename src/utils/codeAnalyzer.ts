@@ -19,6 +19,7 @@ export interface ScopeInfo {
   start: number;
   end: number;
   node: any;
+  variableMap?: Map<string, VariableInfo>; // 优化：添加变量映射以提高查找速度
 }
 
 // 变量信息接口
@@ -39,20 +40,163 @@ interface InsertionPosition {
   scopeEnd?: number; // 变量所在作用域结束位置
 }
 
-// 解析代码生成AST的通用函数
-function parseCode(code: string, fileName: string) {
-  const sourceType =
-    fileName.endsWith(".tsx") || fileName.endsWith(".jsx")
-      ? "script"
-      : "module";
-
-  return parser.parse(code, {
-    sourceType: sourceType as "module" | "script" | "unambiguous",
-    plugins: ["typescript", "jsx", "decorators-legacy", "classProperties"],
-  });
+// 日志级别控制
+export enum LogLevel {
+  ERROR = 0,
+  WARN = 1,
+  INFO = 2,
+  DEBUG = 3,
+  TRACE = 4,
 }
 
+// 日志类，控制日志输出级别
+class Logger {
+  private static level: LogLevel = LogLevel.ERROR;
+
+  static setLevel(level: LogLevel) {
+    this.level = level;
+  }
+
+  static error(message: string, ...args: any[]) {
+    if (this.level >= LogLevel.ERROR) {
+      console.error(`[错误] ${message}`, ...args);
+    }
+  }
+
+  static warn(message: string, ...args: any[]) {
+    if (this.level >= LogLevel.WARN) {
+      console.warn(`[警告] ${message}`, ...args);
+    }
+  }
+
+  static info(message: string, ...args: any[]) {
+    if (this.level >= LogLevel.INFO) {
+      console.log(`[信息] ${message}`, ...args);
+    }
+  }
+
+  static debug(message: string, ...args: any[]) {
+    if (this.level >= LogLevel.DEBUG) {
+      console.log(`[调试] ${message}`, ...args);
+    }
+  }
+
+  static trace(message: string, ...args: any[]) {
+    if (this.level >= LogLevel.TRACE) {
+      console.log(`[跟踪] ${message}`, ...args);
+    }
+  }
+}
+
+// 添加缓存机制
+class AstCache {
+  private static astMap = new Map<string, any>();
+  private static scopeMap = new Map<string, ScopeInfo>();
+  private static contentChecksums = new Map<string, number>();
+
+  // 简单的内容哈希函数，用于检测文件内容变化
+  private static checksum(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash = hash & hash; // 转换为32位整数
+    }
+    return hash;
+  }
+
+  static getAst(code: string, fileName: string): any {
+    // 使用文件名和内容哈希作为缓存键
+    const checksum = this.checksum(code);
+    const key = `${fileName}:${checksum}`;
+
+    // 如果哈希匹配，直接返回缓存的AST
+    if (
+      this.contentChecksums.get(fileName) === checksum &&
+      this.astMap.has(key)
+    ) {
+      Logger.debug(`使用缓存的AST: ${fileName}`);
+      return this.astMap.get(key);
+    }
+
+    // 更新内容哈希
+    this.contentChecksums.set(fileName, checksum);
+
+    // 解析并缓存
+    Logger.info(`解析文件AST: ${fileName}`);
+    const ast = parseCode(code, fileName);
+    this.astMap.set(key, ast);
+    return ast;
+  }
+
+  static getScopeTree(code: string, fileName: string): ScopeInfo {
+    // 使用文件名和内容哈希作为缓存键
+    const checksum = this.checksum(code);
+    const key = `${fileName}:${checksum}`;
+
+    // 如果哈希匹配，直接返回缓存的作用域树
+    if (
+      this.contentChecksums.get(fileName) === checksum &&
+      this.scopeMap.has(key)
+    ) {
+      Logger.debug(`使用缓存的作用域树: ${fileName}`);
+      return this.scopeMap.get(key)!;
+    }
+
+    // 更新内容哈希
+    this.contentChecksums.set(fileName, checksum);
+
+    // 重建作用域树并缓存
+    Logger.info(`构建文件作用域树: ${fileName}`);
+    const ast = this.getAst(code, fileName);
+    const scope = buildScopeTree(ast);
+    this.scopeMap.set(key, scope);
+    return scope;
+  }
+
+  static clearCache(fileName?: string) {
+    if (fileName) {
+      // 清除指定文件的缓存
+      Logger.info(`清除文件缓存: ${fileName}`);
+      for (const key of this.astMap.keys()) {
+        if (key.startsWith(`${fileName}:`)) {
+          this.astMap.delete(key);
+          this.scopeMap.delete(key);
+          this.contentChecksums.delete(fileName);
+        }
+      }
+    } else {
+      // 清除所有缓存
+      Logger.info("清除所有缓存");
+      this.astMap.clear();
+      this.scopeMap.clear();
+      this.contentChecksums.clear();
+    }
+  }
+}
+
+// 优化解析代码生成AST的通用函数
+function parseCode(code: string, fileName: string) {
+  try {
+    const sourceType =
+      fileName.endsWith(".tsx") || fileName.endsWith(".jsx")
+        ? "script"
+        : "module";
+
+    return parser.parse(code, {
+      sourceType: sourceType as "module" | "script" | "unambiguous",
+      plugins: ["typescript", "jsx", "decorators-legacy", "classProperties"],
+    });
+  } catch (error) {
+    Logger.error(`解析代码失败: ${fileName}`, error);
+    throw new Error(`解析失败: ${error.message}`);
+  }
+}
+
+// 优化构建作用域树的函数，使用Map存储变量，提高查找效率
 function buildScopeTree(ast: any) {
+  Logger.debug("开始构建作用域树");
+
+  // 初始化全局作用域
   const globalScope: ScopeInfo = {
     variables: [],
     parent: null,
@@ -60,10 +204,14 @@ function buildScopeTree(ast: any) {
     start: 0,
     end: Infinity,
     node: null,
+    variableMap: new Map<string, VariableInfo>(), // 优化: 使用Map存储变量
   };
 
   let currentScope = globalScope;
   const scopeStack: ScopeInfo[] = [globalScope];
+
+  // 记录已处理过的节点，避免重复处理
+  const processedNodes = new Set<any>();
 
   traverse(ast, {
     enter(path) {
@@ -73,10 +221,13 @@ function buildScopeTree(ast: any) {
       if (
         !node.loc ||
         typeof node.start !== "number" ||
-        typeof node.end !== "number"
+        typeof node.end !== "number" ||
+        processedNodes.has(node)
       ) {
         return;
       }
+
+      processedNodes.add(node);
 
       // 创建新作用域的情况
       if (createNewScope(path)) {
@@ -88,6 +239,7 @@ function buildScopeTree(ast: any) {
           start: node.start,
           end: node.end,
           node: node,
+          variableMap: new Map<string, VariableInfo>(), // 优化: 使用Map存储变量
         };
 
         scopeStack.push(newScope);
@@ -99,7 +251,7 @@ function buildScopeTree(ast: any) {
 
       // 特殊处理对象方法
       if (babelTypes.isObjectMethod(node)) {
-        console.log(`[调试] 处理对象方法: ${node.key?.name || "匿名"}`);
+        Logger.trace(`处理对象方法: ${node.key?.name || "匿名"}`);
         // 确保对象方法获得正确的作用域
         const methodScope: ScopeInfo = {
           variables: [],
@@ -108,6 +260,7 @@ function buildScopeTree(ast: any) {
           start: node.start || 0,
           end: node.end || Infinity,
           node: node,
+          variableMap: new Map<string, VariableInfo>(), // 优化: 使用Map存储变量
         };
 
         scopeStack.push(methodScope);
@@ -117,13 +270,15 @@ function buildScopeTree(ast: any) {
         if (node.params) {
           for (const param of node.params) {
             if (babelTypes.isIdentifier(param)) {
-              currentScope.variables.push({
+              const variable: VariableInfo = {
                 name: param.name,
                 declarationStart: param.start || node.start || 0,
                 declarationEnd: param.end || node.start || 0,
                 references: [],
                 isParameter: true,
-              });
+              };
+              currentScope.variables.push(variable);
+              currentScope.variableMap?.set(param.name, variable);
             }
           }
         }
@@ -133,13 +288,15 @@ function buildScopeTree(ast: any) {
       if (babelTypes.isVariableDeclaration(node)) {
         for (const declarator of node.declarations) {
           if (babelTypes.isIdentifier(declarator.id)) {
-            currentScope.variables.push({
+            const variable: VariableInfo = {
               name: declarator.id.name,
               declarationStart: declarator.start || node.start,
               declarationEnd: declarator.end || node.end,
               references: [],
               isParameter: false,
-            });
+            };
+            currentScope.variables.push(variable);
+            currentScope.variableMap?.set(declarator.id.name, variable);
           }
         }
       }
@@ -150,7 +307,8 @@ function buildScopeTree(ast: any) {
         // 查找最近的包含此变量定义的作用域
         let scope: ScopeInfo | null = currentScope;
         while (scope) {
-          const variable = scope.variables.find((v) => v.name === varName);
+          // 优化：使用Map直接查找变量
+          const variable = scope.variableMap?.get(varName);
           if (variable) {
             variable.references.push(node.start);
             break;
@@ -179,8 +337,10 @@ function buildScopeTree(ast: any) {
     },
   });
 
+  Logger.debug(`作用域树构建完成，全局变量数: ${globalScope.variables.length}`);
   return globalScope;
 }
+
 // 判断是否需要创建新作用域
 function createNewScope(path: NodePath) {
   const node = path.node;
@@ -225,13 +385,15 @@ function collectFunctionParams(path: NodePath, scope: ScopeInfo) {
   ) {
     for (const param of node.params) {
       if (babelTypes.isIdentifier(param)) {
-        scope.variables.push({
+        const variable: VariableInfo = {
           name: param.name,
           declarationStart: param.start ?? node.start ?? 0,
           declarationEnd: param.end ?? node.start ?? 0,
           references: [],
           isParameter: true,
-        });
+        };
+        scope.variables.push(variable);
+        scope.variableMap?.set(param.name, variable);
       }
     }
   }
@@ -252,23 +414,33 @@ function isDeclaration(path: NodePath): boolean {
   );
 }
 
+// 优化后的buildPathHierarchy，减少不必要的日志和计算
 function buildPathHierarchy(path: NodePath): string[] {
   const result: string[] = [];
-  console.log(`[调试] 开始构建路径层次，节点类型: ${path.node.type}`);
+  Logger.trace(`开始构建路径层次，节点类型: ${path.node.type}`);
 
   let current: NodePath | null = path;
-  while (current) {
+  const visitedPaths = new Set<NodePath>(); // 避免循环引用
+
+  while (current && !visitedPaths.has(current)) {
+    visitedPaths.add(current);
+
     // 处理对象方法
     if (
       babelTypes.isObjectMethod(current.node) &&
       babelTypes.isIdentifier(current.node.key)
     ) {
       result.unshift(current.node.key.name);
-      console.log(`[路径] 添加对象方法名: ${current.node.key.name}`);
+      Logger.trace(`添加对象方法名: ${current.node.key.name}`);
 
       // 查找对象表达式
       let objPath = current.parentPath;
-      while (objPath && !babelTypes.isObjectExpression(objPath.node)) {
+      while (
+        objPath &&
+        !babelTypes.isObjectExpression(objPath.node) &&
+        !visitedPaths.has(objPath)
+      ) {
+        visitedPaths.add(objPath);
         objPath = objPath.parentPath;
       }
 
@@ -279,40 +451,43 @@ function buildPathHierarchy(path: NodePath): string[] {
           babelTypes.isIdentifier(objPath.parent.id)
         ) {
           result.unshift(objPath.parent.id.name);
-          console.log(`[路径] 添加变量声明对象名: ${objPath.parent.id.name}`);
+          Logger.trace(`添加变量声明对象名: ${objPath.parent.id.name}`);
         } else if (
           babelTypes.isObjectProperty(objPath.parent) &&
           babelTypes.isIdentifier(objPath.parent.key)
         ) {
           result.unshift(objPath.parent.key.name);
-          console.log(`[路径] 添加对象属性名: ${objPath.parent.key.name}`);
+          Logger.trace(`添加对象属性名: ${objPath.parent.key.name}`);
 
-          // 处理嵌套对象
+          // 处理嵌套对象，限制处理深度以防止无限循环
           let parentObjPath = objPath.parentPath;
-          while (parentObjPath) {
+          let depth = 0;
+          while (parentObjPath && depth < 10) {
+            if (visitedPaths.has(parentObjPath)) break;
+            visitedPaths.add(parentObjPath);
+            depth++;
+
             if (
               babelTypes.isObjectProperty(parentObjPath.node) &&
               babelTypes.isIdentifier(parentObjPath.node.key)
             ) {
               result.unshift(parentObjPath.node.key.name);
-              console.log(
-                `[路径] 添加嵌套对象属性名: ${parentObjPath.node.key.name}`
+              Logger.trace(
+                `添加嵌套对象属性名: ${parentObjPath.node.key.name}`
               );
             } else if (
               babelTypes.isVariableDeclarator(parentObjPath.node) &&
               babelTypes.isIdentifier(parentObjPath.node.id)
             ) {
               result.unshift(parentObjPath.node.id.name);
-              console.log(
-                `[路径] 添加顶层变量名: ${parentObjPath.node.id.name}`
-              );
+              Logger.trace(`添加顶层变量名: ${parentObjPath.node.id.name}`);
               break;
             }
             parentObjPath = parentObjPath.parentPath;
           }
         }
       } else {
-        console.log("[警告] 无法找到对象方法的父对象");
+        Logger.warn("无法找到对象方法的父对象");
       }
       break;
     }
@@ -323,7 +498,7 @@ function buildPathHierarchy(path: NodePath): string[] {
       babelTypes.isIdentifier(current.node.key)
     ) {
       result.unshift(current.node.key.name);
-      console.log(`[路径] 添加类方法名: ${current.node.key.name}`);
+      Logger.trace(`添加类方法名: ${current.node.key.name}`);
 
       // 查找类声明
       const classPath = current.findParent((p) =>
@@ -335,7 +510,7 @@ function buildPathHierarchy(path: NodePath): string[] {
         classPath.node.id
       ) {
         result.unshift(classPath.node.id.name);
-        console.log(`[路径] 添加类名: ${classPath.node.id.name}`);
+        Logger.trace(`添加类名: ${classPath.node.id.name}`);
       }
       break;
     }
@@ -348,7 +523,7 @@ function buildPathHierarchy(path: NodePath): string[] {
       babelTypes.isIdentifier(current.node.id)
     ) {
       result.unshift(current.node.id.name);
-      console.log(`[路径] 添加函数名: ${current.node.id.name}`);
+      Logger.trace(`添加函数名: ${current.node.id.name}`);
       break;
     }
 
@@ -360,7 +535,7 @@ function buildPathHierarchy(path: NodePath): string[] {
     ) {
       if (babelTypes.isIdentifier(current.parent.id)) {
         result.unshift(current.parent.id.name);
-        console.log(`[路径] 添加箭头函数变量名: ${current.parent.id.name}`);
+        Logger.trace(`添加箭头函数变量名: ${current.parent.id.name}`);
       }
       break;
     }
@@ -368,16 +543,21 @@ function buildPathHierarchy(path: NodePath): string[] {
     current = current.parentPath;
   }
 
-  console.log(`[路径] 最终构建路径: ${result.join(".")}`);
+  if (result.length > 0) {
+    Logger.debug(`构建路径结果: ${result.join(".")}`);
+  } else {
+    Logger.debug("路径构建结果为空");
+  }
   return result;
 }
 
+// 优化后的getEnclosingContextName函数
 export function getEnclosingContextName(
   document: vscode.TextDocument,
   position: vscode.Position
 ): ContextInfo {
-  console.log(
-    `[调试] getEnclosingContextName 被调用，位置: ${position.line}:${position.character}`
+  Logger.debug(
+    `getEnclosingContextName 被调用，位置: ${position.line}:${position.character}`
   );
 
   const code = document.getText();
@@ -389,10 +569,11 @@ export function getEnclosingContextName(
   let variableScope: ScopeInfo | null = null;
 
   try {
-    const ast = parseCode(code, document.fileName);
-    const globalScope = buildScopeTree(ast);
+    // 使用缓存获取AST和作用域树
+    const ast = AstCache.getAst(code, document.fileName);
+    const globalScope = AstCache.getScopeTree(code, document.fileName);
 
-    // 查找包含当前位置的最内层作用域
+    // 查找包含当前位置的最内层作用域，使用递归优化
     function findInnerMostScope(
       scope: ScopeInfo,
       position: number
@@ -401,128 +582,131 @@ export function getEnclosingContextName(
         return null;
       }
 
-      // 查找子作用域
+      // 先检查当前作用域的变量引用
       for (const variable of scope.variables) {
         if (variable.references.includes(position)) {
-          console.log(`[作用域] 找到变量引用: ${variable.name}`);
+          Logger.trace(`找到变量引用: ${variable.name}`);
           return scope;
         }
       }
 
-      console.log(
-        `[作用域] 使用作用域: ${scope.type} (${scope.start}-${scope.end})`
-      );
+      Logger.trace(`使用作用域: ${scope.type} (${scope.start}-${scope.end})`);
       return scope;
     }
 
     variableScope = findInnerMostScope(globalScope, offset);
     if (variableScope) {
-      console.log(`[作用域] 最终作用域类型: ${variableScope.type}`);
+      Logger.debug(`最终作用域类型: ${variableScope.type}`);
     }
+
+    // 优化：合并遍历，一次性收集所需信息
+    const nodeTypesToCheck = new Set([
+      "FunctionDeclaration",
+      "FunctionExpression",
+      "ArrowFunctionExpression",
+      "ObjectMethod",
+      "ClassMethod",
+    ]);
 
     traverse(ast, {
       enter(path) {
         const node = path.node;
 
-        // 跳过没有位置信息的节点
+        // 跳过没有位置信息的节点或不相关节点
         if (
           !node.loc ||
           typeof node.start !== "number" ||
-          typeof node.end !== "number"
+          typeof node.end !== "number" ||
+          !nodeTypesToCheck.has(node.type) ||
+          offset < node.start ||
+          offset > node.end
         ) {
           return;
         }
 
-        // 检查节点是否包含目标位置
-        if (offset >= node.start && offset <= node.end) {
-          console.log(`[节点] 处理节点类型: ${node.type}`);
+        Logger.trace(`处理节点类型: ${node.type}`);
 
-          // 处理函数声明
-          if (babelTypes.isFunctionDeclaration(node) && node.id) {
-            functionName = node.id.name;
-            console.log(`[函数] 找到函数声明: ${functionName}`);
-          }
-          // 处理函数表达式
-          else if (
-            babelTypes.isFunctionExpression(node) &&
-            path.parent &&
-            babelTypes.isVariableDeclarator(path.parent) &&
-            path.parent.id &&
-            babelTypes.isIdentifier(path.parent.id)
-          ) {
-            functionName = path.parent.id.name;
-            console.log(`[函数] 找到函数表达式: ${functionName}`);
-          }
-          // 处理箭头函数
-          else if (
-            babelTypes.isArrowFunctionExpression(node) &&
-            path.parent &&
-            babelTypes.isVariableDeclarator(path.parent) &&
-            path.parent.id &&
-            babelTypes.isIdentifier(path.parent.id)
-          ) {
-            functionName = path.parent.id.name;
-            console.log(`[函数] 找到箭头函数: ${functionName}`);
-          }
-          // 处理对象方法
-          else if (
-            babelTypes.isObjectMethod(node) &&
-            node.key &&
-            babelTypes.isIdentifier(node.key)
-          ) {
-            functionName = node.key.name;
-            console.log(`[对象] 找到对象方法: ${functionName}`);
+        // 处理函数声明
+        if (babelTypes.isFunctionDeclaration(node) && node.id) {
+          functionName = node.id.name;
+          Logger.debug(`找到函数声明: ${functionName}`);
+        }
+        // 处理函数表达式
+        else if (
+          babelTypes.isFunctionExpression(node) &&
+          path.parent &&
+          babelTypes.isVariableDeclarator(path.parent) &&
+          path.parent.id &&
+          babelTypes.isIdentifier(path.parent.id)
+        ) {
+          functionName = path.parent.id.name;
+          Logger.debug(`找到函数表达式: ${functionName}`);
+        }
+        // 处理箭头函数
+        else if (
+          babelTypes.isArrowFunctionExpression(node) &&
+          path.parent &&
+          babelTypes.isVariableDeclarator(path.parent) &&
+          path.parent.id &&
+          babelTypes.isIdentifier(path.parent.id)
+        ) {
+          functionName = path.parent.id.name;
+          Logger.debug(`找到箭头函数: ${functionName}`);
+        }
+        // 处理对象方法
+        else if (
+          babelTypes.isObjectMethod(node) &&
+          node.key &&
+          babelTypes.isIdentifier(node.key)
+        ) {
+          functionName = node.key.name;
+          Logger.debug(`找到对象方法: ${functionName}`);
 
-            try {
-              // 构建完整的层级路径
-              const hierarchyPath = buildPathHierarchy(path);
-              //@ts-ignore
-              path = hierarchyPath;
+          try {
+            // 构建完整的层级路径
+            const hierarchyPath = buildPathHierarchy(path);
+            // @ts-ignore
+            path = hierarchyPath;
 
-              if (hierarchyPath.length >= 2) {
-                objectName = hierarchyPath[0]; // 第一个元素应该是对象名
-                functionName = hierarchyPath[1]; // 第二个元素是方法名
-                console.log(
-                  `[对象] 解析对象路径: ${objectName}.${functionName}`
-                );
-              }
-            } catch (pathError) {
-              console.error("[错误] 构建路径层次结构时出错:", pathError);
+            if (hierarchyPath.length >= 2) {
+              objectName = hierarchyPath[0]; // 第一个元素应该是对象名
+              functionName = hierarchyPath[1]; // 第二个元素是方法名
+              Logger.debug(`解析对象路径: ${objectName}.${functionName}`);
             }
+          } catch (pathError) {
+            Logger.error("构建路径层次结构时出错:", pathError);
           }
-          // 处理类方法
-          else if (
-            babelTypes.isClassMethod(node) &&
-            node.key &&
-            babelTypes.isIdentifier(node.key)
-          ) {
-            functionName = node.key.name;
-            console.log(`[类] 找到类方法: ${functionName}`);
+        }
+        // 处理类方法
+        else if (
+          babelTypes.isClassMethod(node) &&
+          node.key &&
+          babelTypes.isIdentifier(node.key)
+        ) {
+          functionName = node.key.name;
+          Logger.debug(`找到类方法: ${functionName}`);
 
-            const classPath = path.findParent((p) =>
-              babelTypes.isClassDeclaration(p.node)
-            );
-            if (
-              classPath &&
-              babelTypes.isClassDeclaration(classPath.node) &&
-              classPath.node.id
-            ) {
-              objectName = classPath.node.id.name;
-              console.log(`[类] 找到类名: ${objectName}`);
-            }
+          const classPath = path.findParent((p) =>
+            babelTypes.isClassDeclaration(p.node)
+          );
+          if (
+            classPath &&
+            babelTypes.isClassDeclaration(classPath.node) &&
+            classPath.node.id
+          ) {
+            objectName = classPath.node.id.name;
+            Logger.debug(`找到类名: ${objectName}`);
           }
         }
       },
     });
 
-    console.log(
-      `[结果] 返回上下文信息: ${
-        objectName ? objectName + "." : ""
-      }${functionName}`
+    Logger.info(
+      `返回上下文信息: ${objectName ? objectName + "." : ""}${functionName}`
     );
     return { functionName, objectName, path, variableScope };
   } catch (e) {
-    console.error("getEnclosingContextName 解析错误:", e);
+    Logger.error("getEnclosingContextName 解析错误:", e);
     return {
       functionName: null,
       objectName: null,
@@ -532,60 +716,24 @@ export function getEnclosingContextName(
   }
 }
 
+// 优化后的findValidInsertionPoint函数
 export function findValidInsertionPoint(
   document: vscode.TextDocument,
   selection: vscode.Selection,
   variableName: string
 ): InsertionPosition | null {
-  console.log(`[调试] findValidInsertionPoint 被调用，变量: ${variableName}`);
+  Logger.debug(`findValidInsertionPoint 被调用，变量: ${variableName}`);
   const code = document.getText();
   const selectedPosition = document.offsetAt(selection.start);
 
   try {
-    const ast = parseCode(code, document.fileName);
-    const globalScope = buildScopeTree(ast);
+    // 使用缓存获取AST和作用域树
+    const ast = AstCache.getAst(code, document.fileName);
+    const globalScope = AstCache.getScopeTree(code, document.fileName);
 
     // 查找变量声明和作用域
     let variableInfo: VariableInfo | null = null;
     let containingScope: ScopeInfo | null = null;
-
-    // 改进的变量查找函数
-    function findVariableInScope(
-      scope: ScopeInfo,
-      name: string
-    ): [VariableInfo | null, ScopeInfo | null] {
-      console.log(
-        `[作用域] 在 ${scope.type} 作用域(位置:${scope.start}-${scope.end})查找变量: ${name}`
-      );
-
-      // 检查当前作用域
-      const variable = scope.variables.find((v) => v.name === name);
-      if (variable) {
-        console.log(`[成功] 找到变量 ${name} 在 ${scope.type} 作用域`);
-        return [variable, scope];
-      }
-
-      return [null, null];
-    }
-
-    // 递归查找变量，包括父作用域
-    function findVariableInAllScopes(
-      scope: ScopeInfo,
-      name: string
-    ): [VariableInfo | null, ScopeInfo | null] {
-      const [foundVar, foundScope] = findVariableInScope(scope, name);
-      if (foundVar) {
-        return [foundVar, foundScope];
-      }
-
-      if (scope.parent) {
-        console.log(`[递归] 在父作用域继续查找变量 ${name}`);
-        return findVariableInAllScopes(scope.parent, name);
-      }
-
-      console.log(`[警告] 未在任何作用域找到变量 ${name}`);
-      return [null, null];
-    }
 
     // 查找包含选中位置的作用域
     function findScopeContainingPosition(
@@ -596,8 +744,29 @@ export function findValidInsertionPoint(
         return null;
       }
 
-      console.log(`[作用域] 当前作用域 ${scope.type} 包含目标位置`);
+      Logger.trace(`当前作用域 ${scope.type} 包含目标位置`);
       return scope;
+    }
+
+    // 查找变量，更高效的版本
+    function findVariableInAllScopes(
+      scope: ScopeInfo | null,
+      name: string
+    ): [VariableInfo | null, ScopeInfo | null] {
+      // 遍历作用域链查找变量
+      let currentScope = scope;
+      while (currentScope) {
+        // 优化：直接从Map中查找变量
+        if (currentScope.variableMap && currentScope.variableMap.has(name)) {
+          const variable = currentScope.variableMap.get(name)!;
+          Logger.debug(`找到变量 ${name} 在 ${currentScope.type} 作用域`);
+          return [variable, currentScope];
+        }
+        currentScope = currentScope.parent;
+      }
+
+      Logger.trace(`未在作用域链中找到变量 ${name}`);
+      return [null, null];
     }
 
     // 1. 首先尝试在标准作用域中查找变量
@@ -614,10 +783,19 @@ export function findValidInsertionPoint(
 
     // 2. 特殊处理：对于对象方法内的变量
     if (!variableInfo) {
-      console.log(`[特殊处理] 尝试在对象方法中查找变量 ${variableName}`);
+      Logger.debug(`尝试在对象方法中查找变量 ${variableName}`);
+
+      // 对象方法处理，使用缓存避免重复计算
+      const objectMethods = new Map<any, any>(); // 节点缓存
+
       traverse(ast, {
         ObjectMethod(path) {
           const node = path.node;
+
+          // 如果已处理过相同节点，跳过
+          if (objectMethods.has(node)) return;
+          objectMethods.set(node, true);
+
           if (
             !node.loc ||
             selectedPosition < node.start ||
@@ -626,7 +804,7 @@ export function findValidInsertionPoint(
             return;
           }
 
-          console.log(`[对象方法] 检查方法: ${node.key?.name || "匿名"}`);
+          Logger.trace(`检查对象方法: ${node.key?.name || "匿名"}`);
           const body = node.body;
           if (babelTypes.isBlockStatement(body)) {
             for (const stmt of body.body) {
@@ -636,7 +814,7 @@ export function findValidInsertionPoint(
                     babelTypes.isIdentifier(decl.id) &&
                     decl.id.name === variableName
                   ) {
-                    console.log(`[成功] 在对象方法内找到变量: ${variableName}`);
+                    Logger.debug(`在对象方法内找到变量: ${variableName}`);
                     variableInfo = {
                       name: variableName,
                       declarationStart: decl.id.start || 0,
@@ -651,6 +829,7 @@ export function findValidInsertionPoint(
                       start: body.start || 0,
                       end: body.end || 0,
                       node: body,
+                      variableMap: new Map([[variableName, variableInfo]]),
                     };
                   }
                 }
@@ -666,8 +845,8 @@ export function findValidInsertionPoint(
       const declarationPosition = document.positionAt(
         variableInfo.declarationEnd
       );
-      console.log(
-        `[插入位置] 在变量声明后: 行 ${declarationPosition.line}, 列 ${declarationPosition.character}`
+      Logger.debug(
+        `在变量声明后找到插入位置: 行 ${declarationPosition.line}, 列 ${declarationPosition.character}`
       );
 
       return {
@@ -680,14 +859,27 @@ export function findValidInsertionPoint(
     }
 
     // 3. 作为备选，使用AST遍历找位置
-    console.log(`[备选方案] 使用AST遍历查找插入位置`);
+    Logger.debug(`使用AST遍历查找插入位置`);
     let validPosition: InsertionPosition | null = null;
     let lastStatementEnd = 0;
+
+    // 使用节点类型过滤，减少不必要的处理
+    const relevantNodeTypes = new Set([
+      "VariableDeclarator",
+      "ArrowFunctionExpression",
+      "FunctionExpression",
+      "VariableDeclaration",
+      "ExpressionStatement",
+    ]);
 
     traverse(ast, {
       enter(path) {
         const node = path.node;
+
+        // 快速过滤不相关节点
         if (
+          !node.type ||
+          !relevantNodeTypes.has(node.type) ||
           !node.loc ||
           selectedPosition < node.start ||
           selectedPosition > node.end
@@ -695,7 +887,7 @@ export function findValidInsertionPoint(
           return;
         }
 
-        console.log(`[节点] 处理 ${node.type} 节点`);
+        Logger.trace(`处理 ${node.type} 节点`);
 
         // 检查是否是变量声明
         if (
@@ -711,8 +903,8 @@ export function findValidInsertionPoint(
             scopeStart: path.scope?.block?.start,
             scopeEnd: path.scope?.block?.end,
           };
-          console.log(
-            `[变量声明] 找到插入位置: ${insertPosition.line}:${insertPosition.character}`
+          Logger.debug(
+            `找到变量声明插入位置: ${insertPosition.line}:${insertPosition.character}`
           );
         }
 
@@ -723,7 +915,7 @@ export function findValidInsertionPoint(
           node.body &&
           babelTypes.isBlockStatement(node.body)
         ) {
-          console.log(`[函数] 检查函数体中的变量`);
+          Logger.trace(`检查函数体中的变量`);
           for (const stmt of node.body.body) {
             if (babelTypes.isVariableDeclaration(stmt)) {
               for (const decl of stmt.declarations) {
@@ -739,8 +931,8 @@ export function findValidInsertionPoint(
                     scopeStart: node.body.start,
                     scopeEnd: node.body.end,
                   };
-                  console.log(
-                    `[函数变量] 找到插入位置: ${insertPosition.line}:${insertPosition.character}`
+                  Logger.debug(
+                    `找到函数变量插入位置: ${insertPosition.line}:${insertPosition.character}`
                   );
                 }
               }
@@ -767,8 +959,8 @@ export function findValidInsertionPoint(
         character: insertPosition.character,
         isEndOfStatement: true,
       };
-      console.log(
-        `[最后语句] 使用最后语句位置: ${insertPosition.line}:${insertPosition.character}`
+      Logger.debug(
+        `使用最后语句位置: ${insertPosition.line}:${insertPosition.character}`
       );
     }
 
@@ -780,41 +972,42 @@ export function findValidInsertionPoint(
         character: line.text.length,
         isEndOfStatement: false,
       };
-      console.log(
-        `[行末] 使用行末位置: ${selection.end.line}:${line.text.length}`
-      );
+      Logger.debug(`使用行末位置: ${selection.end.line}:${line.text.length}`);
     }
 
     return validPosition;
   } catch (e) {
-    console.error(`[异常] 处理 ${variableName} 时出错:`, e);
-    console.error(
-      `[异常] 位置: 行 ${selection.start.line}, 列 ${selection.start.character}`
-    );
-    console.error(`[异常堆栈] ${e.stack}`);
+    Logger.error(`处理 ${variableName} 时出错:`, e);
 
     // 出错时回退到行末
-    const line = document.lineAt(selection.end.line);
-    return {
-      line: selection.end.line,
-      character: line.text.length,
-      isEndOfStatement: false,
-    };
+    try {
+      const line = document.lineAt(selection.end.line);
+      return {
+        line: selection.end.line,
+        character: line.text.length,
+        isEndOfStatement: false,
+      };
+    } catch (fallbackError) {
+      Logger.error("回退到行末失败:", fallbackError);
+      return null;
+    }
   }
 }
 
-// 新增：获取变量定义信息
+// 优化后的getVariableDefinition函数
 export function getVariableDefinition(
   document: vscode.TextDocument,
   position: vscode.Position,
   variableName: string
 ): VariableInfo | null {
+  Logger.debug(`getVariableDefinition 被调用，变量: ${variableName}`);
   const code = document.getText();
   const offset = document.offsetAt(position);
 
   try {
-    const ast = parseCode(code, document.fileName);
-    const globalScope = buildScopeTree(ast);
+    // 使用缓存
+    const ast = AstCache.getAst(code, document.fileName);
+    const globalScope = AstCache.getScopeTree(code, document.fileName);
 
     // 查找包含位置的最内层作用域
     function findScopeAtPosition(
@@ -830,50 +1023,56 @@ export function getVariableDefinition(
 
     const currentScope = findScopeAtPosition(globalScope, offset);
     if (!currentScope) {
+      Logger.debug("未找到包含当前位置的作用域");
       return null;
     }
 
-    // 在当前作用域及其父作用域中查找变量
+    // 在当前作用域及其父作用域中查找变量，使用Map优化
     let scope: ScopeInfo | null = currentScope;
     while (scope) {
-      const variable = scope.variables.find((v) => v.name === variableName);
-      if (variable) {
-        return variable;
+      // 优化：使用Map直接查找变量
+      if (scope.variableMap && scope.variableMap.has(variableName)) {
+        const variable = scope.variableMap.get(variableName);
+        Logger.debug(`在 ${scope.type} 作用域中找到变量 ${variableName}`);
+        return variable!;
       }
       scope = scope.parent;
     }
 
+    Logger.debug(`未找到变量 ${variableName}`);
     return null;
   } catch (e) {
-    console.error("getVariableDefinition->解析错误:", e);
+    Logger.error(`getVariableDefinition 解析错误:`, e);
     return null;
   }
 }
 
-
-
-// 添加到文件底部
+// 调试函数，保留原功能
 export function debugCodeAnalysis(
   document: vscode.TextDocument,
   position: vscode.Position,
   variableName: string
 ): void {
-  console.log("=================== 代码分析调试开始 ===================");
-  console.log(`文件: ${document.fileName}`);
-  console.log(`位置: 行 ${position.line}, 列 ${position.character}`);
-  console.log(`变量名: ${variableName}`);
+  // 临时提高日志级别以显示完整调试信息
+  const previousLogLevel = LogLevel.INFO; // 假设当前级别
+  Logger.setLevel(LogLevel.DEBUG);
+
+  Logger.info("=================== 代码分析调试开始 ===================");
+  Logger.info(`文件: ${document.fileName}`);
+  Logger.info(`位置: 行 ${position.line}, 列 ${position.character}`);
+  Logger.info(`变量名: ${variableName}`);
 
   try {
     const code = document.getText();
     const offset = document.offsetAt(position);
-    const ast = parseCode(code, document.fileName);
-    const globalScope = buildScopeTree(ast);
+    const ast = AstCache.getAst(code, document.fileName);
+    const globalScope = AstCache.getScopeTree(code, document.fileName);
 
-    console.log("作用域树构建完成:");
-    console.log(`全局作用域包含 ${globalScope.variables.length} 个变量`);
+    Logger.info("作用域树构建完成:");
+    Logger.info(`全局作用域包含 ${globalScope.variables.length} 个变量`);
 
     const contextInfo = getEnclosingContextName(document, position);
-    console.log(
+    Logger.info(
       "上下文信息:",
       JSON.stringify(
         {
@@ -888,7 +1087,7 @@ export function debugCodeAnalysis(
     );
 
     const varDef = getVariableDefinition(document, position, variableName);
-    console.log(
+    Logger.info(
       "变量定义:",
       varDef
         ? `找到变量 ${varDef.name} (${varDef.isParameter ? "参数" : "变量"})`
@@ -900,19 +1099,21 @@ export function debugCodeAnalysis(
       new vscode.Selection(position, position),
       variableName
     );
-    console.log(
+    Logger.info(
       "插入点:",
       insertPoint
         ? `行 ${insertPoint.line}, 列 ${insertPoint.character}`
         : "未找到合适插入点"
     );
 
-    console.log("=================== 代码分析调试结束 ===================");
+    Logger.info("=================== 代码分析调试结束 ===================");
   } catch (error) {
-    console.error("调试过程出错:", error);
+    Logger.error("调试过程出错:", error);
+  } finally {
+    // 恢复之前的日志级别
+    Logger.setLevel(previousLogLevel);
   }
 }
-// 添加到文件底部
 
 // 专门用于调试对象方法的函数
 export function debugObjectMethodAnalysis(
@@ -920,22 +1121,30 @@ export function debugObjectMethodAnalysis(
   position: vscode.Position,
   variableName: string
 ): void {
-  console.log("=================== 对象方法分析开始 ===================");
+  // 临时提高日志级别
+  const previousLogLevel = LogLevel.INFO; // 假设当前级别
+  Logger.setLevel(LogLevel.DEBUG);
+
+  Logger.info("=================== 对象方法分析开始 ===================");
 
   try {
     const code = document.getText();
     const offset = document.offsetAt(position);
-    const ast = parseCode(code, document.fileName);
+    const ast = AstCache.getAst(code, document.fileName);
+
+    // 使用Set记录已处理过的节点，避免重复分析
+    const processedNodes = new Set();
 
     // 单独分析对象方法
     traverse(ast, {
       ObjectMethod(path) {
         const node = path.node;
-        if (!node.loc) return;
+        if (!node.loc || processedNodes.has(node)) return;
+        processedNodes.add(node);
 
         // 检查位置是否在当前对象方法内
         if (offset >= node.start && offset <= node.end) {
-          console.log(`[找到] 对象方法: ${node.key?.name || "匿名"}`);
+          Logger.info(`[找到] 对象方法: ${node.key?.name || "匿名"}`);
 
           // 获取对象名信息
           let objPath = path.parentPath;
@@ -948,13 +1157,13 @@ export function debugObjectMethodAnalysis(
               babelTypes.isVariableDeclarator(objPath.parent) &&
               babelTypes.isIdentifier(objPath.parent.id)
             ) {
-              console.log(`[找到] 对象名: ${objPath.parent.id.name}`);
+              Logger.info(`[找到] 对象名: ${objPath.parent.id.name}`);
             }
           }
 
           // 检查方法内变量
           if (babelTypes.isBlockStatement(node.body)) {
-            console.log(
+            Logger.info(
               `[分析] 方法体范围: ${node.body.start}-${node.body.end}`
             );
 
@@ -962,12 +1171,12 @@ export function debugObjectMethodAnalysis(
               if (babelTypes.isVariableDeclaration(stmt)) {
                 for (const decl of stmt.declarations) {
                   if (babelTypes.isIdentifier(decl.id)) {
-                    console.log(
+                    Logger.info(
                       `[发现] 变量: ${decl.id.name} 位置:${decl.id.start}-${decl.id.end}`
                     );
 
                     if (decl.id.name === variableName) {
-                      console.log(`[匹配] 找到目标变量: ${variableName}`);
+                      Logger.info(`[匹配] 找到目标变量: ${variableName}`);
                     }
                   }
                 }
@@ -977,13 +1186,27 @@ export function debugObjectMethodAnalysis(
 
           // 构建一次路径来测试
           const path = buildPathHierarchy(path);
-          console.log(`[路径测试] 构建路径结果: ${path.join(".")}`);
+          Logger.info(`[路径测试] 构建路径结果: ${path.join(".")}`);
         }
       },
     });
 
-    console.log("=================== 对象方法分析结束 ===================");
+    Logger.info("=================== 对象方法分析结束 ===================");
   } catch (error) {
-    console.error("对象方法分析出错:", error);
+    Logger.error("对象方法分析出错:", error);
+  } finally {
+    // 恢复之前的日志级别
+    Logger.setLevel(previousLogLevel);
   }
+}
+
+// 添加导出函数，用于控制日志级别
+export function setLogLevel(level: LogLevel) {
+  Logger.setLevel(level);
+  Logger.info(`日志级别已设置为: ${LogLevel[level]}`);
+}
+
+// 添加导出函数，用于清除缓存
+export function clearAnalyzerCache(fileName?: string) {
+  AstCache.clearCache(fileName);
 }
