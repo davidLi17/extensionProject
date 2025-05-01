@@ -4,6 +4,12 @@ All notable changes to the "log-rush" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [1.2.1] - 2025-04-26
+
+
+### Changed
+- **日志插入算法优化**: 改进日志插入位置的智能分析，更符合编码习惯
+
 ## [1.2.0] - 2025-04-25
 
 ### Added
