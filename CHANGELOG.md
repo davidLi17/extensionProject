@@ -4,6 +4,18 @@ All notable changes to the "log-rush" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [1.2.5] - 2025-05-04
+
+### Fixed
+- **日志插入位置修复**：解决在对象方法中日志被错误插入到变量声明与赋值之间的问题，修复了导致语法错误的关键Bug。
+- **对象上下文路径优化**：改进了嵌套对象和类方法的路径识别，确保日志中显示完整的对象层次结构。
+- **AST解析增强**：提升了对复杂代码结构的分析能力，即使在语法分析失败的情况下也能提供基本上下文信息。
+- **错误处理完善**：增强了异常处理机制，当遇到复杂代码结构时提供更可靠的回退方案。
+
+### Changed
+- **对象方法处理优化**：重构了对象方法的路径构建逻辑，支持多级嵌套对象的正确识别。
+- **变量声明处理改进**：确保始终获取完整变量声明语句的结束位置，而不仅是变量名位置。
+
 ## [1.2.0] - 2025-04-25
 
 ### Added

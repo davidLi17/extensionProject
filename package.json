@@ -2,7 +2,7 @@
   "name": "log-rush",
   "displayName": "LogRush",
   "description": "Quickly add and remove console.log statements with powerful shortcuts.Code faster, debug better, clean up easier! ",
-  "version": "1.2.0",
+  "version": "1.2.5",
   "publisher": "davidLi317",
   "repository": "https://github.com/davidLi17/extensionProject",
   "issues": "https://github.com/davidLi17/extensionProject/issues",
