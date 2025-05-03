@@ -1,14 +1,13 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import { findValidInsertionPoint } from "@/utils/codeAnalyzer";
+import { LogConfig, LogFormatType, LogType } from "@/types/index";
+import { LogHighlighter } from "@/utils/logHighlighter";
+import { getEnclosingContextName } from "@/utils/codeAnalyzer/analyzers/contextAnalyzer";
 import {
   debugCodeAnalysis,
   debugObjectMethodAnalysis,
-  findValidInsertionPoint,
-  getEnclosingContextName,
-} from "@/utils/codeAnalyzer";
-
-import { LogConfig, LogFormatType, LogType } from "@/types/index";
-import { LogHighlighter } from "@/utils/logHighlighter";
+} from "@/utils/codeAnalyzer/analyzers/debugAnalyzer";
 function getLogConfig(): LogConfig {
   const logOption = vscode.workspace.getConfiguration("log-rush");
 
