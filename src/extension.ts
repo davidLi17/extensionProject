@@ -10,6 +10,7 @@ import {
 } from "@/ctrl-key/quickLog";
 import { LogHighlighter } from "./utils/logHighlighter";
 import { LogExplorerProvider } from "./utils/logExplorer";
+import { LogLevel, setLogLevel } from "./utils/codeAnalyzer";
 
 // 插件激活 -  这段代码是用来激活插件的，当你的VS Code启动并加载这个插件的时候，这段代码就会运行。
 export function activate(context: vscode.ExtensionContext) {
@@ -54,6 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
     "logRush.explorerMode",
     "currentFile"
   );
+  setLogLevel(LogLevel.ERROR); //  设置默认日志级别为 ERROR
 }
 
 // 插件卸载 -  这段代码是用来处理插件卸载的，当你的 VS Code 插件被卸载或者禁用的时候，这段代码会被执行。
