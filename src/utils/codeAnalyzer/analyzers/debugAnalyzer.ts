@@ -94,13 +94,19 @@ export function debugObjectMethodAnalysis(
         processedNodes.add(node);
 
         // 检查位置是否在当前对象方法内
-
-        if (offset >= node.start && offset <= node.end) {
-          Logger.info(`[找到] 对象方法: ${node.key?.name || "匿名"}`);
+        if (
+          node.start != null &&
+          node.end != null &&
+          offset >= node.start &&
+          offset <= node.end
+        ) {
+          const keyName = babelTypes.isIdentifier(node.key)
+            ? node.key.name
+            : "匿名";
+          Logger.info(`[找到] 对象方法: ${keyName}`);
 
           // 获取对象名信息
-
-          let objPath = nodePath.parentPath;
+          let objPath: NodePath | null = nodePath.parentPath;
           while (objPath && !babelTypes.isObjectExpression(objPath.node)) {
             objPath = objPath.parentPath;
           }

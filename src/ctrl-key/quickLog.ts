@@ -4,10 +4,6 @@ import { findValidInsertionPoint } from "@/utils/codeAnalyzer";
 import { LogConfig, LogFormatType, LogType } from "@/types/index";
 import { LogHighlighter } from "@/utils/logHighlighter";
 import { getEnclosingContextName } from "@/utils/codeAnalyzer/analyzers/contextAnalyzer";
-import {
-  debugCodeAnalysis,
-  debugObjectMethodAnalysis,
-} from "@/utils/codeAnalyzer/analyzers/debugAnalyzer";
 function getLogConfig(): LogConfig {
   const logOption = vscode.workspace.getConfiguration("log-rush");
 
@@ -46,39 +42,31 @@ export function getFileInfo(document: vscode.TextDocument) {
 
   return { fileName, fileDir, relativePath };
 }
-function generateLogStatement(
-  document: vscode.TextDocument,
-  insertSection: vscode.Selection,
-  word: string,
-  config: LogConfig,
-  logMethod: string = config.logMethod
-): string {
-  // 获取文件信息
-  const fileName = path.basename(document.fileName);
 
-  const fileDir = normalizePath(path.dirname(document.fileName));
-  const dirName = path.basename(fileDir);
-  const relativePath = normalizePath(path.join(dirName, fileName));
+// 构建日志前缀信息的接口
+interface LogPrefixContext {
+  fileName: string;
+  relativePath: string;
+  fullPath: string;
+  lineNumber: string;
+  functionName: string;
+  objectName: string;
+  contextPath: string;
+  word: string;
+}
 
-  // 获取行号信息
-  const lineNumber = config.showLineNumber
-    ? `l:${insertSection.end.line + 1}`
-    : "";
-
-  // 获取函数名和对象名信息
-  const contextInfo = getEnclosingContextName(document, insertSection.start);
-  const functionName = contextInfo.functionName || "";
-  const objectName = contextInfo.objectName || "";
-
-  // 构建上下文路径
-  let contextPath = "";
-  if (objectName && functionName) {
-    contextPath = `${objectName}->${functionName}`;
-  } else if (functionName) {
-    contextPath = functionName;
-  } else {
-    contextPath = "";
-  }
+// 提取公共的日志前缀构建逻辑
+function buildLogPrefix(config: LogConfig, context: LogPrefixContext): string {
+  const {
+    fileName,
+    relativePath,
+    fullPath,
+    lineNumber,
+    functionName,
+    objectName,
+    contextPath,
+    word,
+  } = context;
 
   // 构建文件路径部分
   let filePathStr = "";
@@ -91,20 +79,19 @@ function generateLogStatement(
         filePathStr = relativePath;
         break;
       case LogFormatType.CUSTOM:
-        filePathStr = normalizePath(document.fileName);
+        filePathStr = fullPath;
         break;
     }
   }
 
-  // 构建日志前缀
   let logPrefix = "";
 
   if (config.customFormat && config.filePathType === LogFormatType.CUSTOM) {
-    // 使用自定义格式:
+    // 使用自定义格式
     logPrefix = config.customFormat
       .replace("${fileName}", fileName)
       .replace("${filePath}", relativePath)
-      .replace("${fullPath}", normalizePath(document.fileName))
+      .replace("${fullPath}", fullPath)
       .replace("${functionName}", functionName)
       .replace("${objectName}", objectName)
       .replace("${contextPath}", contextPath)
@@ -112,9 +99,7 @@ function generateLogStatement(
       .replace("${lineNumber}", lineNumber)
       .replace("${varPilotSymbol}", config.varPilotSymbol);
   } else if (config.filePathType === LogFormatType.SHORT) {
-    // user 选择 short模式,最终打印:console.log("varName::", varName);
-    const contextDisplay = contextPath ? `${contextPath}->` : "";
-
+    // SHORT 模式: console.log("varName::", varName);
     if (config.lineTagPosition === "begin" && lineNumber) {
       logPrefix = `${lineNumber} ${word}${config.varPilotSymbol}`;
     } else {
@@ -124,7 +109,7 @@ function generateLogStatement(
       }
     }
   } else if (config.filePathType === LogFormatType.FULL) {
-    // user 选择 full模式,最终打印:console.log("ctrl-key/quickLog.ts ${contextPath} varName::", varName);
+    // FULL 模式: console.log("path/file.ts contextPath varName::", varName);
     const contextDisplay = contextPath ? `${contextPath}->` : "";
     if (config.lineTagPosition === "begin" && lineNumber) {
       logPrefix = `${lineNumber} ${filePathStr} ${contextDisplay}${word}${config.varPilotSymbol}`;
@@ -136,7 +121,47 @@ function generateLogStatement(
     }
   }
 
-  // 构建完整日志语句
+  return logPrefix;
+}
+
+// 构建上下文路径
+function buildContextPath(objectName: string, functionName: string): string {
+  if (objectName && functionName) {
+    return `${objectName}->${functionName}`;
+  } else if (functionName) {
+    return functionName;
+  }
+  return "";
+}
+
+function generateLogStatement(
+  document: vscode.TextDocument,
+  insertSection: vscode.Selection,
+  word: string,
+  config: LogConfig,
+  logMethod: string = config.logMethod
+): string {
+  const { fileName, relativePath } = getFileInfo(document);
+  const lineNumber = config.showLineNumber
+    ? `l:${insertSection.end.line + 1}`
+    : "";
+
+  const contextInfo = getEnclosingContextName(document, insertSection.start);
+  const functionName = contextInfo.functionName || "";
+  const objectName = contextInfo.objectName || "";
+  const contextPath = buildContextPath(objectName, functionName);
+
+  const logPrefix = buildLogPrefix(config, {
+    fileName,
+    relativePath,
+    fullPath: normalizePath(document.fileName),
+    lineNumber,
+    functionName,
+    objectName,
+    contextPath,
+    word,
+  });
+
   return `${logMethod}(${config.quotationMark}${logPrefix}${
     config.quotationMark
   }, ${word}${getLogEnd(config)}`;
@@ -147,101 +172,36 @@ function insertConsoleLog(logType: LogType) {
   if (!editor) {
     return;
   }
-  // 从编辑器对象中获取文档对象，该文档对象代表当前在编辑器中打开的文件内容
   const document = editor.document;
-  // 从编辑器对象中获取当前的选择区域对象，该对象表示用户在编辑器中选中的文本范围
   const varSelection = editor.selection;
-  // 从选择区域对象中获取活动位置，这个位置通常是光标所在的位置
-  const position = editor.selection.active;
-  // 通过文档对象和选择区域对象，获取用户在编辑器中选中的文本内容
   const word = document.getText(varSelection);
-  // 调用 getLogConfig 函数来获取日志配置信息，这个配置信息可能包含日志输出的格式、级别等相关设置
   const config = getLogConfig();
-  // 根据传入的 logType 变量，拼接出一个完整的控制台日志输出方法，例如 "console.log"、"console.error" 等
   const logMethod = `console.${logType}`;
 
-  // 调用 debugCodeAnalysis 函数，传入文档对象、光标位置和选中的文本内容，可能用于对代码进行调试分析
-  //   debugCodeAnalysis(document, position, word);
-  //   if (word && word.length > 0)
-  //     debugObjectMethodAnalysis(document, position, word);
-  //   }
-  // 没有选择变量的情况，使用带路径信息的s
-
+  // 没有选择变量的情况，使用带占位符的 snippet
   if (!word) {
-    // 获取文件信息
-    const fileName = path.basename(document.fileName);
-    const fileDir = normalizePath(path.dirname(document.fileName));
-    const dirName = path.basename(fileDir);
-    const relativePath = normalizePath(path.join(dirName, fileName));
-
-    // 获取行号信息
+    const { fileName, relativePath } = getFileInfo(document);
     const lineNumber = config.showLineNumber
       ? `l:${varSelection.end.line + 1}`
       : "";
 
-    // 获取函数名和对象名信息
     const contextInfo = getEnclosingContextName(document, varSelection.start);
     const functionName = contextInfo.functionName || "";
     const objectName = contextInfo.objectName || "";
+    const contextPath = buildContextPath(objectName, functionName);
 
-    // 构建上下文路径
-    let contextPath = "";
-    if (objectName && functionName) {
-      contextPath = `${objectName}->${functionName}`;
-    } else if (functionName) {
-      contextPath = functionName;
-    } else {
-      contextPath = "";
-    }
-
-    // 构建文件路径部分
-    let filePathStr = "";
-    if (config.showFilePath) {
-      switch (config.filePathType) {
-        case LogFormatType.SHORT:
-          filePathStr = fileName;
-          break;
-        case LogFormatType.FULL:
-          filePathStr = relativePath;
-          break;
-        case LogFormatType.CUSTOM:
-          filePathStr = normalizePath(document.fileName);
-          break;
-      }
-    }
-
-    // 构建日志前缀
-    let logPrefix = "";
-    const placeholderVar = "$1"; // 使用snippet的占位符
-
-    if (config.customFormat && config.filePathType === LogFormatType.CUSTOM) {
-      // 使用自定义格式
-      logPrefix = config.customFormat
-        .replace("${fileName}", fileName)
-        .replace("${filePath}", relativePath)
-        .replace("${fullPath}", normalizePath(document.fileName))
-        .replace("${functionName}", functionName)
-        .replace("${objectName}", objectName)
-        .replace("${contextPath}", contextPath)
-        .replace("${varName}", placeholderVar)
-        .replace("${lineNumber}", lineNumber)
-        .replace("${varPilotSymbol}", config.varPilotSymbol);
-    } else if (
-      config.filePathType === LogFormatType.SHORT ||
-      config.filePathType === LogFormatType.FULL
-    ) {
-      // 使用标准格式
-      const contextDisplay = contextPath ? `${contextPath}->` : "";
-
-      if (config.lineTagPosition === "begin" && lineNumber) {
-        logPrefix = `${lineNumber} ${filePathStr} ${contextDisplay}${placeholderVar}${config.varPilotSymbol}`;
-      } else {
-        logPrefix = `${filePathStr} ${contextDisplay}${placeholderVar}${config.varPilotSymbol}`;
-        if (lineNumber) {
-          logPrefix += ` ${lineNumber}`;
-        }
-      }
-    }
+    // 使用占位符 $1 作为变量名
+    const placeholderVar = "$1";
+    const logPrefix = buildLogPrefix(config, {
+      fileName,
+      relativePath,
+      fullPath: normalizePath(document.fileName),
+      lineNumber,
+      functionName,
+      objectName,
+      contextPath,
+      word: placeholderVar,
+    });
 
     const value = new vscode.SnippetString(
       `${logMethod}(${config.quotationMark}${logPrefix}${

@@ -23,8 +23,8 @@ export function parseCode(code: string, fileName: string) {
     });
   } catch (error) {
     Logger.error(`解析代码失败: ${fileName}`, error);
-    //@ts-ignore
-    throw new Error(`解析失败: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`解析失败: ${errorMessage}`);
   }
 }
 
@@ -146,9 +146,13 @@ export function buildScopeTree(ast: any) {
         }
       }
 
-      // 收集变量引用
-      //@ts-ignore
-      if (babelTypes.isIdentifier(node) && !babelTypes.isDeclaration(path)) {
+      // 收集变量引用（排除声明中的标识符）
+      if (
+        babelTypes.isIdentifier(node) &&
+        !path.parentPath?.isVariableDeclarator({ id: node }) &&
+        !path.parentPath?.isFunctionDeclaration({ id: node }) &&
+        !path.parentPath?.isClassDeclaration({ id: node })
+      ) {
         const varName = node.name;
         // 查找最近的包含此变量定义的作用域
         let scope: ScopeInfo | null = currentScope;

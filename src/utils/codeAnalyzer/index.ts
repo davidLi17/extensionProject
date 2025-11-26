@@ -104,8 +104,13 @@ export function findValidInsertionPoint(
           ) {
             return;
           }
-          //@ts-ignore
-          Logger.trace(`检查对象方法: ${node.key?.name || "匿名"}`);
+          // 获取对象方法名称
+          const methodName = babelTypes.isIdentifier(node.key)
+            ? node.key.name
+            : babelTypes.isStringLiteral(node.key)
+            ? node.key.value
+            : "匿名";
+          Logger.trace(`检查对象方法: ${methodName}`);
           const body = node.body;
 
           if (babelTypes.isBlockStatement(body)) {

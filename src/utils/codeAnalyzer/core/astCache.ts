@@ -1,20 +1,28 @@
 import { ScopeInfo } from "../types";
 import { Logger } from "./logger";
 import { buildScopeTree, parseCode } from "./parser";
+
 // 添加缓存机制
 export class AstCache {
   private static astMap = new Map<string, any>();
   private static scopeMap = new Map<string, ScopeInfo>();
-  private static contentChecksums = new Map<string, number>();
+  private static contentChecksums = new Map<string, string>();
 
-  // 简单的内容哈希函数，用于检测文件内容变化
-  private static checksum(str: string): number {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i);
-      hash = hash & hash; // 转换为32位整数
+  // 使用 DJB2 哈希算法，性能更好且冲突率更低
+  // 同时采样部分内容以提高大文件性能
+  private static checksum(str: string): string {
+    const len = str.length;
+    // 对于大文件，只采样部分内容计算哈希
+    const sampleSize = Math.min(len, 10000);
+    const step = Math.max(1, Math.floor(len / sampleSize));
+
+    let hash = 5381;
+    for (let i = 0; i < len; i += step) {
+      hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
     }
-    return hash;
+
+    // 将哈希值与长度组合，进一步降低冲突概率
+    return `${hash >>> 0}_${len}`;
   }
 
   static getAst(code: string, fileName: string): any {

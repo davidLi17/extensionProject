@@ -5,12 +5,34 @@ import * as babelTypes from "@babel/types";
 // 判断是否是变量声明
 export function isDeclaration(path: NodePath): boolean {
   const parent = path.parent;
+  const node = path.node;
 
-  return (
-    (babelTypes.isVariableDeclarator(parent) && path.node === parent.id) ||
-    (babelTypes.isFunction(parent) && parent.id && path.node === parent.id) ||
-    (babelTypes.isFunction(parent) &&
-      Array.isArray(parent.params) &&
-      parent.params.includes(path.node))
-  );
+  // 检查是否是变量声明的 id
+  if (babelTypes.isVariableDeclarator(parent) && node === parent.id) {
+    return true;
+  }
+
+  // 检查是否是函数声明/表达式的 id
+  if (
+    (babelTypes.isFunctionDeclaration(parent) ||
+      babelTypes.isFunctionExpression(parent)) &&
+    parent.id &&
+    node === parent.id
+  ) {
+    return true;
+  }
+
+  // 检查是否是函数参数
+  if (
+    babelTypes.isFunction(parent) &&
+    Array.isArray(parent.params) &&
+    babelTypes.isIdentifier(node) &&
+    parent.params.some(
+      (param) => babelTypes.isIdentifier(param) && param === node
+    )
+  ) {
+    return true;
+  }
+
+  return false;
 }

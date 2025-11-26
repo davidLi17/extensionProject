@@ -108,6 +108,7 @@ export function getEnclosingContextName(
     // 如果找到了包含当前位置的函数节点，处理它
     if (containingNodePath && containingFunctionNode) {
       Logger.debug(`处理节点类型: ${containingFunctionNode.type}`);
+      const nodePath = containingNodePath as NodePath<babelTypes.Node>;
 
       // 处理函数声明
       if (
@@ -120,23 +121,23 @@ export function getEnclosingContextName(
       // 处理函数表达式
       else if (
         babelTypes.isFunctionExpression(containingFunctionNode) &&
-        containingNodePath.parent &&
-        babelTypes.isVariableDeclarator(containingNodePath.parent) &&
-        containingNodePath.parent.id &&
-        babelTypes.isIdentifier(containingNodePath.parent.id)
+        nodePath.parent &&
+        babelTypes.isVariableDeclarator(nodePath.parent) &&
+        nodePath.parent.id &&
+        babelTypes.isIdentifier(nodePath.parent.id)
       ) {
-        functionName = containingNodePath.parent.id.name;
+        functionName = nodePath.parent.id.name;
         Logger.debug(`找到函数表达式: ${functionName}`);
       }
       // 处理箭头函数
       else if (
         babelTypes.isArrowFunctionExpression(containingFunctionNode) &&
-        containingNodePath.parent &&
-        babelTypes.isVariableDeclarator(containingNodePath.parent) &&
-        containingNodePath.parent.id &&
-        babelTypes.isIdentifier(containingNodePath.parent.id)
+        nodePath.parent &&
+        babelTypes.isVariableDeclarator(nodePath.parent) &&
+        nodePath.parent.id &&
+        babelTypes.isIdentifier(nodePath.parent.id)
       ) {
-        functionName = containingNodePath.parent.id.name;
+        functionName = nodePath.parent.id.name;
         Logger.debug(`找到箭头函数: ${functionName}`);
       }
       // 处理对象方法
@@ -150,7 +151,7 @@ export function getEnclosingContextName(
 
         try {
           // 改进：更可靠地构建对象方法的完整路径
-          path = buildPathHierarchy(containingNodePath);
+          path = buildPathHierarchy(nodePath);
 
           if (path.length >= 1) {
             // 最后一个元素是方法名，前面的都是对象路径
@@ -175,7 +176,7 @@ export function getEnclosingContextName(
         functionName = containingFunctionNode.key.name;
         Logger.debug(`找到类方法: ${functionName}`);
 
-        const classPath = containingNodePath.findParent((p) =>
+        const classPath = nodePath.findParent((p: NodePath) =>
           babelTypes.isClassDeclaration(p.node)
         );
         if (
@@ -189,8 +190,7 @@ export function getEnclosingContextName(
             Logger.error("类名未定义");
           }
           // 构建完整路径数组
-
-          path = [objectName, functionName];
+          path = [objectName, functionName!];
         }
       }
     }
