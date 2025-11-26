@@ -1,0 +1,213 @@
+{
+  "project_name": "extensionProject",
+  "project_summary": "LogRush - VSCode 日志管理扩展",
+  "timestamp": "2025-11-26T23:36:24",
+  "scan_stats": {
+    "total_files_scanned": 25,
+    "total_project_files": 100,
+    "coverage_percentage": 25.0,
+    "ignored_files": 9000,
+    "truncated": false
+  },
+  "modules": [
+    {
+      "name": "root",
+      "path": "/",
+      "type": "project_root",
+      "entry_point": "src/extension.ts",
+      "files": [
+        "package.json",
+        "README.md",
+        "CHANGELOG.md",
+        ".gitignore"
+      ],
+      "interfaces": [],
+      "tests": ["src/test/extension.test.ts"],
+      "config_files": ["package.json", "tsconfig.json", "webpack.config.js"],
+      "coverage": 100,
+      "scan_status": "completed"
+    },
+    {
+      "name": "ctrl-key",
+      "path": "src/ctrl-key",
+      "type": "feature_module",
+      "entry_point": "quickLog.ts",
+      "files": [
+        "src/ctrl-key/quickLog.ts",
+        "src/ctrl-key/quickRemoveLog.ts"
+      ],
+      "interfaces": [
+        "insertConsoleLog()",
+        "removeLog()",
+        "commentLog()",
+        "uncommentLog()"
+      ],
+      "tests": [],
+      "config_files": [],
+      "dependencies": [
+        "vscode",
+        "@babel/traverse",
+        "@babel/types",
+        "utils/codeAnalyzer",
+        "utils/logHighlighter",
+        "types/index"
+      ],
+      "coverage": 80,
+      "scan_status": "completed"
+    },
+    {
+      "name": "utils",
+      "path": "src/utils",
+      "type": "utility_module",
+      "entry_point": "index.ts",
+      "files": [
+        "src/utils/index.ts",
+        "src/utils/logExplorer.ts",
+        "src/utils/logHighlighter.ts"
+      ],
+      "interfaces": [
+        "LogExplorerProvider",
+        "LogHighlighter"
+      ],
+      "tests": [],
+      "config_files": [],
+      "dependencies": [
+        "vscode",
+        "fs",
+        "path",
+        "@babel/parser",
+        "@babel/traverse",
+        "@babel/types"
+      ],
+      "coverage": 70,
+      "scan_status": "completed"
+    },
+    {
+      "name": "codeAnalyzer",
+      "path": "src/utils/codeAnalyzer",
+      "type": "core_module",
+      "entry_point": "index.ts",
+      "files": [
+        "src/utils/codeAnalyzer/index.ts",
+        "src/utils/codeAnalyzer/core/astCache.ts",
+        "src/utils/codeAnalyzer/core/parser.ts",
+        "src/utils/codeAnalyzer/core/logger.ts",
+        "src/utils/codeAnalyzer/analyzers/contextAnalyzer.ts",
+        "src/utils/codeAnalyzer/analyzers/scopeAnalyzer.ts",
+        "src/utils/codeAnalyzer/analyzers/pathAnalyzer.ts",
+        "src/utils/codeAnalyzer/analyzers/debugAnalyzer.ts",
+        "src/utils/codeAnalyzer/types/index.ts",
+        "src/utils/codeAnalyzer/utils/helpers.ts"
+      ],
+      "interfaces": [
+        "findValidInsertionPoint()",
+        "getEnclosingContextName()",
+        "AstCache",
+        "Logger"
+      ],
+      "tests": [],
+      "config_files": [],
+      "dependencies": [
+        "vscode",
+        "@babel/parser",
+        "@babel/traverse",
+        "@babel/types"
+      ],
+      "coverage": 60,
+      "scan_status": "partial"
+    },
+    {
+      "name": "types",
+      "path": "src/types",
+      "type": "type_module",
+      "entry_point": "index.ts",
+      "files": [
+        "src/types/index.ts"
+      ],
+      "interfaces": [
+        "LogConfig",
+        "LogFormatType",
+        "LogType"
+      ],
+      "tests": [],
+      "config_files": [],
+      "dependencies": [],
+      "coverage": 100,
+      "scan_status": "completed"
+    }
+  ],
+  "missing_interfaces": [
+    "src/utils/logHighlighter.ts 详细分析",
+    "src/utils/logExplorer.ts 完整功能分析",
+    "src/utils/codeAnalyzer/analyzers/ 目录下的详细实现",
+    "src/utils/codeAnalyzer/core/ 目录下的详细实现",
+    "src/ctrl-key/quickRemoveLog.ts 完整功能分析"
+  ],
+  "missing_tests": [
+    "ctrl-key 模块的单元测试",
+    "utils 模块的单元测试",
+    "codeAnalyzer 模块的单元测试",
+    "集成测试文件"
+  ],
+  "missing_config": [
+    "webpack.config.js 分析",
+    "tsconfig.json 分析",
+    ".eslintrc.js 分析"
+  ],
+  "ignored_patterns": [
+    "node_modules/**",
+    "out/**",
+    "dist/**",
+    ".git/**",
+    ".vscode/**",
+    "*.log",
+    "*.lock"
+  ],
+  "architecture_summary": {
+    "type": "vscode_extension",
+    "language": "typescript",
+    "build_system": "webpack",
+    "package_manager": "pnpm",
+    "testing_framework": "mocha",
+    "linting": "eslint",
+    "core_dependencies": [
+      "@babel/parser",
+      "@babel/traverse",
+      "@babel/types"
+    ],
+    "vscode_apis": [
+      "commands",
+      "workspace",
+      "window",
+      "TreeView",
+      "TreeDataProvider",
+      "DecorationType"
+    ]
+  },
+  "next_scan_priorities": [
+    "src/utils/codeAnalyzer/analyzers/",
+    "src/utils/codeAnalyzer/core/",
+    "src/ctrl-key/quickRemoveLog.ts",
+    "src/utils/logHighlighter.ts",
+    "webpack.config.js",
+    "tsconfig.json"
+  ],
+  "scan_gaps": {
+    "implementation_details": [
+      "代码分析器算法的具体实现",
+      "缓存机制的性能优化细节",
+      "错误处理和边界情况",
+      "VSCode 扩展的生命周期管理"
+    ],
+    "testing_coverage": [
+      "核心功能的单元测试缺失",
+      "集成测试需要完善",
+      "错误场景测试不足"
+    ],
+    "documentation": [
+      "API 文档需要完善",
+      "代码注释需要改进",
+      "使用示例需要补充"
+    ]
+  }
+}

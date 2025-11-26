@@ -55,7 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
     "logRush.explorerMode",
     "currentFile"
   );
-  setLogLevel(LogLevel.ERROR); //  设置默认日志级别为 ERROR
+  setLogLevel(LogLevel.DEBUG);
 }
 
 // 插件卸载 -  这段代码是用来处理插件卸载的，当你的 VS Code 插件被卸载或者禁用的时候，这段代码会被执行。

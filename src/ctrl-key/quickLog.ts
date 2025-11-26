@@ -1,14 +1,13 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import { findValidInsertionPoint } from "@/utils/codeAnalyzer";
+import { LogConfig, LogFormatType, LogType } from "@/types/index";
+import { LogHighlighter } from "@/utils/logHighlighter";
+import { getEnclosingContextName } from "@/utils/codeAnalyzer/analyzers/contextAnalyzer";
 import {
   debugCodeAnalysis,
   debugObjectMethodAnalysis,
-  findValidInsertionPoint,
-  getEnclosingContextName,
-} from "@/utils/codeAnalyzer";
-
-import { LogConfig, LogFormatType, LogType } from "@/types/index";
-import { LogHighlighter } from "@/utils/logHighlighter";
+} from "@/utils/codeAnalyzer/analyzers/debugAnalyzer";
 function getLogConfig(): LogConfig {
   const logOption = vscode.workspace.getConfiguration("log-rush");
 
@@ -113,19 +112,19 @@ function generateLogStatement(
       .replace("${lineNumber}", lineNumber)
       .replace("${varPilotSymbol}", config.varPilotSymbol);
   } else if (config.filePathType === LogFormatType.SHORT) {
-    // 使用标准格式
+    // user 选择 short模式,最终打印:console.log("varName::", varName);
     const contextDisplay = contextPath ? `${contextPath}->` : "";
 
     if (config.lineTagPosition === "begin" && lineNumber) {
-      logPrefix = `${lineNumber} ${filePathStr} ${contextDisplay}${word}${config.varPilotSymbol}`;
+      logPrefix = `${lineNumber} ${word}${config.varPilotSymbol}`;
     } else {
-      logPrefix = `${filePathStr} ${contextDisplay}${word}${config.varPilotSymbol}`;
+      logPrefix = `${word}${config.varPilotSymbol}`;
       if (lineNumber) {
         logPrefix += ` ${lineNumber}`;
       }
     }
   } else if (config.filePathType === LogFormatType.FULL) {
-    // 使用标准格式
+    // user 选择 full模式,最终打印:console.log("ctrl-key/quickLog.ts ${contextPath} varName::", varName);
     const contextDisplay = contextPath ? `${contextPath}->` : "";
     if (config.lineTagPosition === "begin" && lineNumber) {
       logPrefix = `${lineNumber} ${filePathStr} ${contextDisplay}${word}${config.varPilotSymbol}`;
