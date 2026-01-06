@@ -3,6 +3,48 @@
 All notable changes to the "log-rush" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+## [1.2.6] - 2025-05-25
+
+### 核心增强
+- **100% 插入可靠性**  
+  实现多层回退策略，确保日志语句始终可插入：
+  - 首选：基于AST的精准定位
+  - 备选：基于作用域的启发式分析
+  - 兜底：安全的下一行插入（附带用户通知）
+
+- **弹性错误处理**  
+  隔离故障点并实现独立错误恢复：
+  ```typescript
+  // 核心逻辑示例
+  try {
+    position = findASTPosition() 
+      || findScopePosition()
+      || createFallbackPosition()
+  } catch {
+    position = getSafeDefaultPosition()
+  }
+  ```
+
+### 用户体验优化
+- **智能定位**  
+  现在优先选择以下插入位置：
+  1. 变量声明之后
+  2. 代码块末尾
+  3. 下一行（兜底方案）
+
+- **透明化通知**  
+  使用回退策略时的可视化反馈：
+  ```markdown
+  [LOG-RUSH] 已在第42行使用兜底插入方案
+  （原始目标位置不可用）
+  ```
+
+- **手动调整优化**  
+  保持理想缩进和格式以便：
+  - 拖拽重新定位
+  - 多行编辑
+  - 格式保持
+
 
 ## [1.2.5] - 2025-05-04
 

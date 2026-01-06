@@ -21,6 +21,12 @@ enum LogType {
 	TIME = "time",
 	TIMEDLOG = "timeLog",
 }
+
+// 语言特定的日志方法配置
+interface LanguageSpecificMethods {
+	[language: string]: string;
+}
+
 interface LogConfig {
 	logMethod: string;
 	varPilotSymbol: string;
@@ -31,5 +37,9 @@ interface LogConfig {
 	filePathType: LogFormatType;
 	lineTagPosition: "begin" | "end";
 	customFormat: string;
+	enableCustomLogMethod: boolean;
+	languageSpecificMethods: LanguageSpecificMethods;
+	autoDetectLanguage: boolean;
 }
-export { LogFormatType, LogType, LogConfig };
+
+export { LogFormatType, LogType, LogConfig, LanguageSpecificMethods };

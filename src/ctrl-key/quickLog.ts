@@ -5,13 +5,19 @@ import {
 	validateInsertionPosition,
 	createSafeInsertionPosition,
 } from "@/utils/codeAnalyzer";
-import { LogConfig, LogFormatType, LogType } from "@/types/index";
+import {
+	LogConfig,
+	LogFormatType,
+	LogType,
+	LanguageSpecificMethods,
+} from "@/types/index";
 import { LogHighlighter } from "@/utils/logHighlighter";
 import { getEnclosingContextName } from "@/utils/codeAnalyzer/analyzers/contextAnalyzer";
 import {
 	debugCodeAnalysis,
 	debugObjectMethodAnalysis,
 } from "@/utils/codeAnalyzer/analyzers/debugAnalyzer";
+
 function getLogConfig(): LogConfig {
 	const logOption = vscode.workspace.getConfiguration("log-rush");
 
@@ -27,14 +33,32 @@ function getLogConfig(): LogConfig {
 		customFormat:
 			logOption.get("CustomFormat") ||
 			"${filePath}: ${functionName}->${varName}${varPilotSymbol}",
+		enableCustomLogMethod: logOption.get("EnableCustomLogMethod") || false,
+		languageSpecificMethods: logOption.get("LanguageSpecificMethods") || {
+			python: "print",
+			javascript: "console.log",
+			typescript: "console.log",
+			java: "System.out.println",
+			csharp: "Console.WriteLine",
+			cpp: "std::cout",
+			c: "printf",
+			go: "fmt.Println",
+			rust: "println!",
+			php: "echo",
+			ruby: "puts",
+		},
+		autoDetectLanguage: logOption.get("AutoDetectLanguage") || true,
 	};
 }
+
 function getLogEnd(config: LogConfig): string {
 	return config.showLogSemicolon ? ");" : ")";
 }
+
 export function normalizePath(inputPath: string): string {
 	return inputPath.replace(/\\/g, "/");
 }
+
 export function getFileInfo(document: vscode.TextDocument) {
 	// 获取文件名并去掉扩展名
 	const fileName = path.basename(document.fileName);
@@ -50,6 +74,7 @@ export function getFileInfo(document: vscode.TextDocument) {
 
 	return { fileName, fileDir, relativePath };
 }
+
 function generateLogStatement(
 	document: vscode.TextDocument,
 	insertSection: vscode.Selection,
@@ -140,10 +165,14 @@ function generateLogStatement(
 		}
 	}
 
-	// 构建完整日志语句
-	return `${logMethod}(${config.quotationMark}${logPrefix}${
-		config.quotationMark
-	}, ${word}${getLogEnd(config)}`;
+	// 使用新的语言特定格式化函数
+	return formatLogStatementForLanguage(
+		document,
+		logMethod,
+		logPrefix,
+		word,
+		config
+	);
 }
 
 function insertConsoleLog(logType: LogType) {
@@ -157,7 +186,7 @@ function insertConsoleLog(logType: LogType) {
 	const position = editor.selection.active;
 	const word = document.getText(varSelection);
 	const config = getLogConfig();
-	const logMethod = `console.${logType}`;
+	const logMethod = getLogMethodForDocument(document, config, logType);
 
 	// 没有选择变量的情况，使用带路径信息的snippet
 	if (!word) {
@@ -237,9 +266,13 @@ function insertConsoleLog(logType: LogType) {
 		}
 
 		const value = new vscode.SnippetString(
-			`${logMethod}(${config.quotationMark}${logPrefix}${
-				config.quotationMark
-			}, $1${getLogEnd(config)}`
+			formatLogStatementForLanguage(
+				document,
+				logMethod,
+				logPrefix,
+				"$1",
+				config
+			)
 		);
 		editor.insertSnippet(value, varSelection.start);
 		return;
@@ -379,6 +412,145 @@ function insertConsoleLog(logType: LogType) {
 		});
 	}
 }
+
+/**
+ * 检测当前文档的语言并返回相应的日志方法
+ */
+function getLogMethodForDocument(
+	document: vscode.TextDocument,
+	config: LogConfig,
+	logType: LogType
+): string {
+	// 如果启用了自定义日志方法，直接使用配置的方法
+	if (config.enableCustomLogMethod) {
+		return config.logMethod;
+	}
+
+	// 如果启用了自动语言检测
+	if (config.autoDetectLanguage) {
+		const languageId = document.languageId;
+		const languageMethod = config.languageSpecificMethods[languageId];
+
+		if (languageMethod) {
+			// 对于支持多种日志级别的语言（如JavaScript/TypeScript），保持原有逻辑
+			if (languageId === "javascript" || languageId === "typescript") {
+				return `console.${logType}`;
+			}
+			// 对于其他语言，直接使用配置的方法
+			return languageMethod;
+		}
+	}
+
+	// 兜底：使用传统的console.logType格式
+	return `console.${logType}`;
+}
+
+/**
+ * 根据语言生成合适的日志语句格式
+ */
+function formatLogStatementForLanguage(
+	document: vscode.TextDocument,
+	logMethod: string,
+	logPrefix: string,
+	word: string,
+	config: LogConfig
+): string {
+	const languageId = document.languageId;
+
+	switch (languageId) {
+		case "python":
+			// Python: print(f"prefix: {variable}")
+			if (word) {
+				return `${logMethod}(f${config.quotationMark}${logPrefix}{${word}}${config.quotationMark})`;
+			} else {
+				return `${logMethod}(f${config.quotationMark}${logPrefix}${config.quotationMark})`;
+			}
+
+		case "java":
+			// Java: System.out.println("prefix: " + variable);
+			if (word) {
+				return `${logMethod}(${config.quotationMark}${logPrefix}${
+					config.quotationMark
+				} + ${word})${config.showLogSemicolon ? ";" : ""}`;
+			} else {
+				return `${logMethod}(${config.quotationMark}${logPrefix}${
+					config.quotationMark
+				})${config.showLogSemicolon ? ";" : ""}`;
+			}
+
+		case "csharp":
+			// C#: Console.WriteLine($"prefix: {variable}");
+			if (word) {
+				return `${logMethod}($${config.quotationMark}${logPrefix}{${word}}${
+					config.quotationMark
+				})${config.showLogSemicolon ? ";" : ""}`;
+			} else {
+				return `${logMethod}($${config.quotationMark}${logPrefix}${
+					config.quotationMark
+				})${config.showLogSemicolon ? ";" : ""}`;
+			}
+
+		case "cpp":
+		case "c":
+			// C++: std::cout << "prefix: " << variable << std::endl;
+			if (word) {
+				return `${logMethod} << ${config.quotationMark}${logPrefix}${
+					config.quotationMark
+				} << ${word} << std::endl${config.showLogSemicolon ? ";" : ""}`;
+			} else {
+				return `${logMethod} << ${config.quotationMark}${logPrefix}${
+					config.quotationMark
+				} << std::endl${config.showLogSemicolon ? ";" : ""}`;
+			}
+
+		case "go":
+			// Go: fmt.Println("prefix:", variable)
+			if (word) {
+				return `${logMethod}(${config.quotationMark}${logPrefix}${config.quotationMark}, ${word})`;
+			} else {
+				return `${logMethod}(${config.quotationMark}${logPrefix}${config.quotationMark})`;
+			}
+
+		case "rust":
+			// Rust: println!("prefix: {}", variable);
+			if (word) {
+				return `${logMethod}(${config.quotationMark}${logPrefix}{}${
+					config.quotationMark
+				}, ${word})${config.showLogSemicolon ? ";" : ""}`;
+			} else {
+				return `${logMethod}(${config.quotationMark}${logPrefix}${
+					config.quotationMark
+				})${config.showLogSemicolon ? ";" : ""}`;
+			}
+
+		case "php":
+			// PHP: echo "prefix: " . $variable;
+			if (word) {
+				return `${logMethod} ${config.quotationMark}${logPrefix}${
+					config.quotationMark
+				} . ${word}${config.showLogSemicolon ? ";" : ""}`;
+			} else {
+				return `${logMethod} ${config.quotationMark}${logPrefix}${
+					config.quotationMark
+				}${config.showLogSemicolon ? ";" : ""}`;
+			}
+
+		case "ruby":
+			// Ruby: puts "prefix: #{variable}"
+			if (word) {
+				return `${logMethod} ${config.quotationMark}${logPrefix}#{${word}}${config.quotationMark}`;
+			} else {
+				return `${logMethod} ${config.quotationMark}${logPrefix}${config.quotationMark}`;
+			}
+
+		default:
+			// 默认JavaScript/TypeScript格式
+			return `${logMethod}(${config.quotationMark}${logPrefix}${
+				config.quotationMark
+			}, ${word}${getLogEnd(config)}`;
+	}
+}
+
 const quickLog = vscode.commands.registerTextEditorCommand(
 	"log-rush.qlog",
 	function () {
@@ -403,4 +575,98 @@ const quickInfo = vscode.commands.registerTextEditorCommand(
 		insertConsoleLog(LogType.INFO);
 	}
 );
-export { quickLog, quickError, quickWarn, quickInfo };
+
+// 新增：通用自定义日志插入命令
+const quickCustomLog = vscode.commands.registerTextEditorCommand(
+	"log-rush.qcustom",
+	function () {
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			return;
+		}
+
+		const document = editor.document;
+		const varSelection = editor.selection;
+		const word = document.getText(varSelection);
+		const config = getLogConfig();
+
+		// 强制使用自定义日志方法
+		const customConfig = { ...config, enableCustomLogMethod: true };
+		const logMethod = customConfig.logMethod;
+
+		// 如果没有选择变量，使用snippet
+		if (!word) {
+			// 获取文件信息和构建前缀的逻辑（简化版）
+			const fileName = path.basename(document.fileName);
+			const fileDir = normalizePath(path.dirname(document.fileName));
+			const dirName = path.basename(fileDir);
+			const relativePath = normalizePath(path.join(dirName, fileName));
+
+			let logPrefix = "";
+			if (customConfig.showFilePath) {
+				switch (customConfig.filePathType) {
+					case LogFormatType.SHORT:
+						logPrefix = fileName;
+						break;
+					case LogFormatType.FULL:
+						logPrefix = relativePath;
+						break;
+					case LogFormatType.CUSTOM:
+						logPrefix = normalizePath(document.fileName);
+						break;
+				}
+			}
+
+			// 添加变量占位符
+			if (logPrefix) {
+				logPrefix += ` $1${customConfig.varPilotSymbol}`;
+			} else {
+				logPrefix = `$1${customConfig.varPilotSymbol}`;
+			}
+
+			const value = new vscode.SnippetString(
+				formatLogStatementForLanguage(
+					document,
+					logMethod,
+					logPrefix,
+					"$1",
+					customConfig
+				)
+			);
+			editor.insertSnippet(value, varSelection.start);
+			return;
+		}
+
+		// 有选择变量的情况，直接插入到下一行
+		vscode.commands.executeCommand("editor.action.insertLineAfter").then(() => {
+			const insertSelection = editor.selection;
+			const logStatement = generateLogStatement(
+				document,
+				insertSelection,
+				word,
+				customConfig,
+				logMethod
+			);
+
+			editor
+				.edit((editBuilder) => {
+					editBuilder.insert(insertSelection.start, logStatement);
+				})
+				.then(() => {
+					const endPosition = new vscode.Position(
+						insertSelection.start.line,
+						insertSelection.start.character + logStatement.length
+					);
+					editor.selection = new vscode.Selection(endPosition, endPosition);
+
+					setTimeout(() => {
+						if (editor) {
+							LogHighlighter.updateHighlights(editor);
+						}
+					}, 100);
+				});
+		});
+	}
+);
+
+export { quickLog, quickError, quickWarn, quickInfo, quickCustomLog };

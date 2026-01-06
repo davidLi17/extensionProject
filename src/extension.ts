@@ -3,10 +3,11 @@
 import * as vscode from "vscode";
 import { removeLog, commentLog, uncommentLog } from "@/ctrl-key/quickRemoveLog";
 import {
-  quickLog,
-  quickError,
-  quickWarn,
-  quickInfo,
+	quickLog,
+	quickError,
+	quickWarn,
+	quickInfo,
+	quickCustomLog,
 } from "@/ctrl-key/quickLog";
 import { LogHighlighter } from "./utils/logHighlighter";
 import { LogExplorerProvider } from "./utils/logExplorer";
@@ -14,41 +15,43 @@ import { LogLevel, setLogLevel } from "./utils/codeAnalyzer";
 
 // 插件激活 -  这段代码是用来激活插件的，当你的VS Code启动并加载这个插件的时候，这段代码就会运行。
 export function activate(context: vscode.ExtensionContext) {
-  // 注册已有命令
-  context.subscriptions.push(removeLog);
-  context.subscriptions.push(commentLog);
-  context.subscriptions.push(uncommentLog);
-  context.subscriptions.push(quickError);
-  context.subscriptions.push(quickWarn);
-  context.subscriptions.push(quickInfo);
-  context.subscriptions.push(quickLog);
+	// 注册已有命令
+	context.subscriptions.push(removeLog);
+	context.subscriptions.push(commentLog);
+	context.subscriptions.push(uncommentLog);
+	context.subscriptions.push(quickError);
+	context.subscriptions.push(quickWarn);
+	context.subscriptions.push(quickInfo);
+	context.subscriptions.push(quickCustomLog);
+	context.subscriptions.push(quickLog);
 
-  // 初始化日志高亮器
-  LogHighlighter.initialize(context);
+	// 初始化日志高亮器
+	LogHighlighter.initialize(context);
 
-  // 初始化日志资源管理器
-  const logExplorerProvider = new LogExplorerProvider(context);
-  const treeView = vscode.window.createTreeView("logRushExplorer", {
-    treeDataProvider: logExplorerProvider,
-    showCollapseAll: true,
-  });
-  context.subscriptions.push(treeView);
+	// 初始化日志资源管理器
+	const logExplorerProvider = new LogExplorerProvider(context);
+	const treeView = vscode.window.createTreeView("logRushExplorer", {
+		treeDataProvider: logExplorerProvider,
+		showCollapseAll: true,
+	});
+	context.subscriptions.push(treeView);
 
-  // 注册日志浏览器相关命令
-  context.subscriptions.push(
-    vscode.commands.registerCommand("log-rush.refreshLogExplorer", () => {
-      logExplorerProvider.refresh();
-    }),
-    vscode.commands.registerCommand("log-rush.toggleExplorerMode", () => {
-      logExplorerProvider.toggleMode();
-      vscode.commands.executeCommand(
-        "setContext",
-        "logRush.explorerMode",
-        logExplorerProvider.getCurrentMode()
-      );
-    })
-  );
+	// 注册日志浏览器相关命令
+	context.subscriptions.push(
+		vscode.commands.registerCommand("log-rush.refreshLogExplorer", () => {
+			logExplorerProvider.refresh();
+		}),
+		vscode.commands.registerCommand("log-rush.toggleExplorerMode", () => {
+			logExplorerProvider.toggleMode();
+			vscode.commands.executeCommand(
+				"setContext",
+				"logRush.explorerMode",
+				logExplorerProvider.getCurrentMode()
+			);
+		})
+	);
 
+<<<<<<< Updated upstream
   // 设置上下文变量
   vscode.commands.executeCommand(
     "setContext",
@@ -56,6 +59,15 @@ export function activate(context: vscode.ExtensionContext) {
     "currentFile"
   );
   setLogLevel(LogLevel.DEBUG);
+=======
+	// 设置上下文变量
+	vscode.commands.executeCommand(
+		"setContext",
+		"logRush.explorerMode",
+		"currentFile"
+	);
+	setLogLevel(LogLevel.DEBUG);
+>>>>>>> Stashed changes
 }
 
 // 插件卸载 -  这段代码是用来处理插件卸载的，当你的 VS Code 插件被卸载或者禁用的时候，这段代码会被执行。
@@ -73,6 +85,6 @@ export function deactivate() {} //  注意这里要加上 export， 导出 deact
 
 // ES Module 导出方式 (如果你的 package.json 里有 "type": "module" 或者是TS文件)
 export default {
-  activate,
-  deactivate,
+	activate,
+	deactivate,
 };

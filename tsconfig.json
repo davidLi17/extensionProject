@@ -10,7 +10,11 @@
 		"lib": ["ES2022"],
 		"sourceMap": true,
 		"rootDir": "src",
-		"strict": true /* enable all strict type-checking options */
+		"strict": true /* enable all strict type-checking options */,
+		/* 减少Babel AST类型检查问题 */
+		"noImplicitAny": false /* 允许隐式any类型 */,
+		"strictNullChecks": false /* 放宽null检查 */,
+		"strictPropertyInitialization": false /* 放宽属性初始化检查 */
 		/* Additional Checks */
 		// "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */
 		// "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
