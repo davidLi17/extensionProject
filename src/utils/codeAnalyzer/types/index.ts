@@ -33,6 +33,8 @@ export interface InsertionPosition {
   isEndOfStatement: boolean;
   scopeStart?: number; // 变量所在作用域开始位置
   scopeEnd?: number; // 变量所在作用域结束位置
+  needsNewlineBefore?: boolean; // 插入位置
+  isFunctionParam?: boolean; // 是否是函数参数
 }
 
 // 日志级别控制
